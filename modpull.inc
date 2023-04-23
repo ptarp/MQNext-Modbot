@@ -1,4 +1,5 @@
 
+
 #event ImHit "#*# YOU, but #*#"
 #Event ImHit "#*#YOU for#*#points of damage."
 
@@ -132,7 +133,7 @@ Sub AdvPull(P0)
       /varset tDistance ${Target.Distance}
       /if (${APScript.Length}>3) {
          /varcalc Tries ${Tries}+1
-    	 /call MBScript ${APScript}
+       /call MBScript ${APScript}
 |     } else /if (!${APScript.Length} && !${APPath.Length} && ${APSpell.Length}) {
 |        /if (${Me.Book[${Me.Book[${APSpell.Arg[1,|]}]}].ID}) /call MQ2Cast "${APSpell.Arg[1,|]}" ${APSpell.Arg[2,|]} ${Spell[${APSpell.Arg[1,|]}].MyCastTime.Float} -targetID|${tTargetID}
       }
@@ -224,7 +225,7 @@ Sub Event_ImHit
          /delay 1s ${Target.ID}
          /if (${Target.ID} && ${Target.ID}!=${Me.ID}) /varset APTargetID ${Target.ID}
       }
-   } else /if (${DefenseC}) {
+   } else /if (${Defined[DefenseC]}) {
       /call MBScript Defense
    }  
    /if (${Me.CombatState.Equal[combat]}) /varset SitCheckTimer 5s

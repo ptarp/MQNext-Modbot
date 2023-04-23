@@ -2,7 +2,7 @@
 Sub LoadAQINIVals
    /declare a int local
    /call LoadINIVar AdvCure AQCount 0 AQCount "${IniFile}" int
-   /call LoadINIVar AdvCure AQNewFormat 1 AQNewFormat "${IniFile}" int
+   /call LoadINIVar AdvCure AQNewFormat 0 AQNewFormat "${IniFile}" int
    /declare AQCheckTimer timer outer
    /if (${AQCount}) {
       /call LoadINIVar AdvCure AQCheckTime 8 AQCheckTime "${IniFile}" int

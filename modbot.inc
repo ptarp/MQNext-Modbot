@@ -57,13 +57,7 @@ Sub Startup
          /endmacro
       }
    }
-   /if (!${Plugin[MQ2AdvPath].Name.Length}) {
-      /squelch /plugin MQ2AdvPath noauto
-      /if (!${Plugin[MQ2AdvPath].Name.Length}) {
-         /echo ${If[${TimeStampOnEcho},[${Time}] ,]}You must have MQ2AdvPath plugin to use this macro!!
-         /endmacro
-      }
-   }
+   
    /if (!${Plugin[MQ2MoveUtils].Name.Length}) {
       /squelch /plugin MQ2MoveUtils noauto
       /if (!${Plugin[MQ2MoveUtils].Name.Length}) {
@@ -81,6 +75,58 @@ Sub Startup
       }
    }
 
+/declare FollowCommand string outer ""
+/declare FollowPlug string outer ""
+
+| Default to AdvPath
+/varset FollowCommand afollow
+/varset FollowPlug AdvPath  
+
+   /if (${Ini["${MBCommon}","Settings","FollowPlugin","NOTFOUND"].Equal[NOTFOUND]}) {
+      
+      /declare UseAdvPath int local 2
+      /squelch /custombind add APath 
+      /squelch /custombind set APath-up /varset UseAdvPath 1
+      /squelch /bind APath shift+y 
+
+      /squelch /custombind add APthNo 
+      /squelch /custombind set APthNo-up /varset UseAdvPath 0 
+      /squelch /bind APthNo shift+n 
+
+      /echo Please set your FollowPlugin in Settings. Choose AdvPath?  (Please press shift-y or shift-n)
+      /echo Choosing no will use NetAdvPath
+:NotSet
+      /delay 3
+      /if (${UseAdvPath}==2) /goto :NotSet
+      /if (${UseAdvPath}==1) {
+         /ini "${MBCommon}" "Settings" "FollowPlugin" "AdvPath"
+      } else {
+         /ini "${MBCommon}" "Settings" "FollowPlugin" "NetAdvPath"
+      }
+      /squelch /custombind delete APath 
+      /squelch /custombind delete APthNo 
+      | Not going to exit here
+   }
+   /if (${Ini["${MBCommon}","Settings","FollowPlugin"].Equal[NetAdvPath]}) {
+         /varset FollowCommand netfollow
+         /varset FollowPlug NetAdvPath  
+   }
+   
+   /if (!${Plugin[MQ2AdvPath].Name.Length} && ${FollowPlug.NotEqual[NetAdvPath]}) {
+      /squelch /plugin MQ2AdvPath noauto
+      /if (!${Plugin[MQ2AdvPath].Name.Length}) {
+         /echo ${If[${TimeStampOnEcho},[${Time}] ,]}You must have MQ2AdvPath plugin to use this macro!!
+         /endmacro
+      }
+   }
+   /if (!${Plugin[MQ2NetAdvPath].Name.Length}  && ${FollowPlug.Equal[NetAdvPath]}) {
+      /squelch /plugin MQ2NetAdvPath noauto
+      /if (!${Plugin[MQ2NetAdvPath].Name.Length}) {
+         /echo ${If[${TimeStampOnEcho},[${Time}] ,]}You must have MQ2AdvPath or MQ2NetAdvPath plugin to use this macro!!
+         /endmacro
+      }
+   }
+   /echo Using ${FollowPlug}
    /if (!${NetBots.Enable} || !${NetBots.Listen} || !${NetBots.Output}) {
       /netbots on send=on grab=on
    }
@@ -125,7 +171,7 @@ Sub Startup
 | Simple On/Off Toggle Commands - Upper/Lower Case is important here. It has to match the variable declaration
    /declare OnOffCommands string outer DoAfk,DoBuffBot,DoBuffs,DoCombines,DoCures,DoDebuffs,DoEvents,DoForage,DoFW,DoHeals,DoLoot,DoMelee,DoMount,DoNamed,DoPet,DoPetShrink,DoPetToys,DoRez,DoSelfShrink,DoSit,DoTells,OffTank
 | Action Commands - Case is unimportant. Will call a Subroutine named "Command_" + uppercase version of it.   
-   /declare ActionCommands string outer Abort,AddBuff,AddDebuff,Attack,AutoBank,Backoff,Buffup,Campout,DoAA,DoCommand,DoList,DoPull,DoQuest,DropPet,Duck,Exclude,ExcludeID,Follow,GetBank,Give,Goto,HailDelay,HandIn,Help,Holdup,Include,IncludeID,InviteAll,LetsRoll,MakeCamp,Mana,MBPause,MBWayPlay,MBWayRec,PetToys,Recast,SayDelay,SayTarget,Script,Search,Sell,SetINIvar,SetPuller,SetTank,Stop,Switch,TankAndHeals,
+   /declare ActionCommands string outer Abort,AddBuff,AddDebuff,Attack,AutoBank,Backoff,Buffup,Campout,DoAA,DoCommand,DoList,DoPull,DoQuest,DropPet,Duck,Exclude,ExcludeID,Follow,GetBank,Give,Goto,HailDelay,HandIn,Help,Holdup,Include,IncludeID,InviteAll,LetsRoll,MakeCamp,Mana,MBPause,MBWayPlay,MBWayRec,PetToys,Recast,SayDelay,SayTarget,Script,Search,Sell,SetINIvar,SetPuller,SetTank,Stop,Switch,TankAndHeals,port,groupup,savegroup,swapsave,swapitem
 | PetToys items
    /declare PTCount int outer 0
    /declare PTSpell[5] string outer
@@ -148,9 +194,22 @@ Sub Startup
    /declare FollowName string outer
    /declare ManualPuller bool outer FALSE
    /declare ManualTank bool outer FALSE
-   
+   /if (${Select[${Me.Class.ShortName},dru,wiz,nec,mag,enc,shm]}) {
+   		/docommand ${If[${Me.AltAbility[Exodus].ID},/call LoadINIVar Settings EvacSpell "Exodus|alt" EvacSpell "${IniFile}" string,/call LoadINIVar Settings EvacSpell " " EvacSpell "${IniFile}" string]}
+   		/if (!${Ini[${IniFile},"Ports"].Length}) {
+   			/call LoadINIVar Ports gate "Gate|8" gate "${IniFile}" string
+   			|/echo Set up Ports!!
+   		} else {
+   			/declare PortString string local ${Ini[${IniFile},"Ports"]}
+   			/varset PortString ${PortString.Left[-1]}
+   			/echo Ports = ${PortString}
+   			/declare sIndx int local 0
+   			/for sIndx 1 to ${PortString.Count[|]}
+   				/if (${PortString.Arg[${sIndx},|].NotEqual[NULL]}) /call LoadINIVar Ports ${PortString.Arg[${sIndx},|]} " " ${PortString.Arg[${sIndx},|]} "${IniFile}" string
+   			/next sIndx
+   		}
+      }
    /declare a int local 0 
-
    /call LoadINIVar Settings AAAnnounce " " AAAnnounce "${IniFile}" string
    /call LoadINIVar Settings AABank 0 AABank "${IniFile}" int
    /call LoadINIVar Settings AAtoNormal FALSE AAtoNormal "${IniFile}" bool
@@ -275,10 +334,9 @@ Sub Startup
 
    /call ProcessExcludeList zone
    /varset ZoneName ${Zone.Name}
-
+   /declare CommandString string outer ""
    /doevents flush
 /return
-
 
 Sub Event_EQBC(EQBCSay,EQBCSender,EQBCCommand)
    /if (!${Defined[EQBCSender]}) {
@@ -322,6 +380,9 @@ Sub Event_chat(MsgType,MsgFrom,MsgText)
 	     /varset MsgFrom ${MsgFrom.Right[-2].Left[-1]}
 	  }
    }
+   | Usage of /bcaa
+   /if (${MsgType.Equal[EQBC]} && ${MsgFrom.Equal[${Me.Name}]}) /varset MsgFrom LOCAL
+   
    /if (!${DoBuffBot} && !${Select[${MsgFrom},${MasterList},LOCAL]} && (!${MasterList.Equal[Netbots]} || !${NetBots.Client.Find[${MsgFrom}]}) || ${MsgFrom.Equal[${Me.Name}]}) {
       /if (!${NetBots[${MsgFrom}].ID} && ${MsgType.Equal[TELL]} && ${DoTells}) {
          /if (!${MsgFrom.Equal[${Me.Name}]} && !${MsgFrom.Equal[${Me.Pet.CleanName}]} && !${Spawn[npc ${MsgFrom}].ID}) /call TellEvent ${MsgFrom} "${MsgText}"
@@ -343,6 +404,8 @@ Sub Event_chat(MsgType,MsgFrom,MsgText)
    } else {
       /varset SenderName ${MsgFrom}
    }
+   | Function calls get screwy MsgText, so we set outer variable "CommandString" and use that.
+   /varset CommandString ${MsgText}
 | If BuffBot, add 'cast'
    /if (${DoBuffBot}) {
       /varset MsgText cast ${MsgText}
@@ -358,7 +421,7 @@ Sub Event_chat(MsgType,MsgFrom,MsgText)
    }
 | Check our Command Lists
    /if (${Select[${MsgText.Arg[1]},${ActionCommands}]}) {
-      /call Command_${ActionCommands.Arg[${Select[${MsgText.Arg[1]},${ActionCommands}]},,].Upper} "${MsgText}"
+      /call Command_${ActionCommands.Arg[${Select[${MsgText.Arg[1]},${ActionCommands}]},,].Upper} ${MsgText}
    } else /if (${Select[${MsgText.Arg[1]},${OnOffCommands}]}) {
       /call TFToggle ${OnOffCommands.Arg[${Select[${MsgText.Arg[1]},${OnOffCommands}]},,]} ${MsgText.Arg[2]}
 | Handle our legacy DoSongs alias
@@ -367,6 +430,128 @@ Sub Event_chat(MsgType,MsgFrom,MsgText)
    }
 /return
 
+Sub Command_SWAPSAVE(MsgText)
+   /varset MsgText ${CommandString}
+    /declare swapname string local ${MsgText.Arg[2]}
+    /declare siName string local ${MsgText.Arg[3]}
+    /if (!${swapname.Length}) {
+      /echo Usage: /mb swapsave swapname ItemName|location,ItemName|location
+      /echo Ex: /mb swapsave Uqua "Club of Destructive Protection|ranged"
+      /echo Or /mb saveswap Uqua 67739|ranged
+      /return
+    }
+    /if (${swapname.Equal[Normal]}) {
+      /varset siName
+      /declare x int local 0
+      /for x 1 to 22
+        /if (${siName.Length}>1) /varset siName ${siName},
+        /varset siName ${siName}${InvSlot[${x}].Item.ID}|${InvSlot[${x}].Name}
+      /next x
+    }
+      |/echo ${swapname} : ${siName}
+    /ini "${IniFile}" "ItemSwaps" "${swapname}" "${siName}"
+/return
+  
+Sub Command_SWAPITEM(MsgText)
+   /varset MsgText ${CommandString}
+    /declare swapname string local ${MsgText.Arg[2]}
+    /declare swapslot string local ${MsgText.Arg[3]}
+    |/echo ${swapslot}
+    /if (!${swapname.Length}>2) {
+      /echo Usage: /mb swapitem [swapname] [slot] This will load "swapname" from "ItemSwaps" section of ini file and equip items for you.  Adding the [slot] will limit to the slot specified.
+      /return
+    }
+    /declare equipset string local ${Ini["${IniFile}",ItemSwaps,${swapname},NOTFOUND]}
+
+    /if (${equipset.Equal[NOTFOUND]}) {
+      /if (${swapname.NotEqual[${Zone.ShortName}]}) /echo No equipment set named ${swapname} found.  Please use swapsave command first.
+      /return
+    }
+    /declare x int local 0
+    /declare xItem string local ""
+    /if (${swapslot.NotEqual[NULL]} && ${swapslot.Length}>2) {
+      /for x 1 to ${Math.Calc[${equipset.Count[,]} + 1]}
+        /varset xItem ${equipset.Arg[${x},,]}
+        /if (${xItem.Arg[2,|].Equal[${swapslot}]}) {
+          /echo Swapping ${xItem.Arg[1,|]} to ${xItem.Arg[2,|]}
+          /if (${xItem.Length}> 2 && ${xItem.Arg[1,|].NotEqual[NULL]}) /squelch /exchange ${xItem.Arg[1,|]} ${xItem.Arg[2,|]}
+          /return
+        }
+        /next x
+   } else /if (${equipset.Find[,]}) {
+     /for x 1 to ${Math.Calc[${equipset.Count[,]} + 1]}
+       /varset xItem ${equipset.Arg[${x},,]}
+       /if (${InvSlot[${xItem.Arg[2,|]}].ID}!=${xItem.Arg[1,|]}) /echo Swapping ${xItem.Arg[1,|]} to ${xItem.Arg[2,|]}
+       /if (${xItem.Length}> 2 && ${xItem.Arg[1,|].NotEqual[NULL]}) /squelch /exchange ${xItem.Arg[1,|]} ${xItem.Arg[2,|]}
+     /next x
+   } else {
+      /varset xItem ${equipset}
+      /echo Swapping ${xItem.Arg[1,|]} to ${xItem.Arg[2,|]}
+      /if (${xItem.Length}> 2 && ${xItem.NotEqual[NULL]}) /squelch /exchange ${xItem.Arg[1,|]} ${xItem.Arg[2,|]}
+   }
+/return
+
+Sub Command_GROUPUP(MsgText)
+   /varset MsgText ${CommandString}
+    /declare grpname string local ""
+    /declare gMembrs string local ""
+    |/echo Look for group name? /varset grpname ${MsgText.Right[-8]}
+    /if (${MsgText.Length} > 9) {
+      /varset grpname ${MsgText.Right[-8]}
+    } else {
+      /varset grpname Normal
+    }
+	 /declare IniString string local ${Ini["${IniFile}","Groups",${grpname},NOTFOUND]}
+      |/echo Inistring = ${IniString}
+    /if (!${IniString.Length} || ${IniString.Equal[NOTFOUND]}) {
+      |/echo Group "${grpNname}" Not found.
+      /return
+    }
+    /if (${IniString.Arg[1].Equal[${Me.Name}]}) {
+      /declare x int local 0
+      /for x 2 to ${Math.Calc[${IniString.Count[ ]}+1]}
+        /echo Inviting ${IniString.Arg[${x}]}
+        /if (!${Group.Member[${IniString.Arg[${x}]}].Index}) /invite ${IniString.Arg[${x}]}
+        /delay 6
+      /next x
+    }
+/return
+   
+
+Sub Command_SAVEGROUP
+   /IF (${Group.Leader.Name.NotEqual[${Me.Name}]}) /return
+   /echo Saving group...
+    /declare grpname string local ""
+    /declare gMembrs string local ""
+    /if (${MsgText.Length} > 10) {
+      /varset grpname ${MsgText.Right[-10]}
+    } else {
+      /varset grpname Normal
+    }
+    /if (${Group.Leader.Name.Equal[${Me.Name}]}) {
+      /declare x int local 0
+      /varset gMembrs ${Group.Leader.Name}
+      /for x 0 to ${Group.Members}
+        /if (${Group.Member[${x}].Name.NotEqual[${Group.Leader.Name}]}) /varset gMembrs ${gMembrs} ${Group.Member[${x}]}
+      /next x
+      /ini  "${IniFile}" "Groups" "${grpname}" "${gMembrs}"
+      /echo Saved -  "${IniFile}" "Groups" "${grpname}" "${gMembrs}"
+    }
+/return
+
+Sub Command_PORT(MsgText)
+   /if (!${Select[${Me.Class.ShortName},dru,wiz,nec,mag,enc,shm]}) /return
+   /varset MsgText ${CommandString}
+   |/echo Command_PORT - ${Commandstring}
+	/if (!${Defined[${MsgText.Right[-5]}]}) /multiline ; /bc port: ${MsgText.Right[-5]} not found!;/return
+  	/if (${Me.Casting.ID}) /delay 3s !${Me.Casting.ID}
+  	/bc Porting: ${MsgText.Right[-5]} : ${${MsgText.Right[-5]}.Arg[1,|]} from gem ${${MsgText.Right[-5]}.Arg[2,|]}
+  	/if (!${Me.Gem[${${MsgText.Right[-5]}.Arg[1,|]}]}) /memorize "${${MsgText.Right[-5]}.Arg[1,|]}|gem${${MsgText.Right[-5]}.Arg[2,|]}"
+  	/delay 4s ${Me.Gem[${${MsgText.Right[-5]}.Arg[1,|]}]}
+  	/delay 10s ${Cast.Ready[${${MsgText.Right[-5]}.Arg[1,|]}]}
+  	/casting "${${MsgText.Right[-5]}}" -retries|2
+  }
+/return
 
 Sub LoadINIVar(IniSection,IniVar,IniValue,MacroVar,MyIni,VarType)
    /if (!${Defined[${MacroVar}]} && ${VarType.Length}) /declare ${MacroVar} ${VarType} outer
@@ -432,12 +617,13 @@ Sub Event_SummonFW(Line,ExtraStuff)
 /return
 
 
-Sub Event_Invite((string eLine,string eType)
+Sub Event_Invite(string eLine,string eType)
    /if (!${Select[${eType},group,raid]}) /return
    /if (${Select[${eLine.Arg[1]},${MasterList}]} || ${NetBots[${eLine.Arg[1]}].ID}) {
       /if (!${Me.Class.ShortName.Equal[brd]} && ${Me.Casting.ID}) {
 	     /delay 10s !${Me.Casting.ID}
 	  }
+     /delay 1
       /invite
       /delay 1s
       /if (${Window[ConfirmationDialogBox].Open}) /notify ConfirmationDialogBox CD_Yes_Button leftmouseup
@@ -453,6 +639,7 @@ Sub Event_DelayOnZone(ZoneText)
    /varset DoDebuffs FALSE
    /varset DoMelee FALSE
    /varset DoPull FALSE
+
    /if (${FollowFlag}) {
       /varset FollowFlag 10
       /stick off
@@ -487,6 +674,8 @@ Sub Event_DelayOnZone(ZoneText)
    }
    /doevents flush
    /squelch /alert clear 25
+   /varset CommandString swapitem ${Zone.ShortName}
+   /call Command_SWAPITEM ${Zone.ShortName}
 /return
 
 
@@ -1225,7 +1414,9 @@ Sub PickUpItem(int iID, int iSlot, int iSlot2, int iCount)
 
 
 Sub MBScript(P0,P1,P2)
-|  /echo ${If[${TimeStampOnEcho},[${Time}] ,]}${P0} ${P1} ${P2}
+	/if (${CommandString.Left[6].Equal[script]})  /varset P0 ${CommandString.Right[-7]}
+ |/echo ${If[${TimeStampOnEcho},[${Time}] ,]}${P0} / ${P1} / ${P2}
+  
   /declare a int local
   /declare b int local
   /declare c int local
@@ -1233,6 +1424,8 @@ Sub MBScript(P0,P1,P2)
   /declare sVarL string local
   /declare sVarC string local
   /declare sVarM string local
+  /declare Param1 string local
+  
   /declare ScriptINI string local ${IniFile}
   /if (!${P0.Length}) {
     /echo ${If[${TimeStampOnEcho},[${Time}] ,]}Syntax Error
@@ -1244,6 +1437,11 @@ Sub MBScript(P0,P1,P2)
       /varset P0 ${P0.Right[${Math.Calc[${P0.Length}-${P0.Find[-]}]}]}
     } else /varset P0 ${P0.Arg[2]}
   }
+  /if (${P0.Arg[2].Length}>0) {
+   |/echo  Param1 found. ${P0.Arg[2]} This is additional command info that can be used by the script.
+   /varset Param1 ${P0.Arg[2]}
+   /varset P0 ${P0.Arg[1]}
+  } 
   /if (!${Defined[${P0}C]}) {
     /declare ${P0}C int outer ${Ini["${ScriptINI}",Script-${P0},Commands]}
     /if (!${${P0}C}) {
@@ -1289,6 +1487,7 @@ Sub MBScript(P0,P1,P2)
     /if (${EchoScripts}) {
 	   /echo ${If[${TimeStampOnEcho},[${Time}] ,]}/docommand ${sVarC}
 	}
+   |/echo docommand ${sVarC}
     /docommand ${sVarC}
     /if (!${Timer}) {
       /echo ${If[${TimeStampOnEcho},[${Time}] ,]}Script [${P0}] took too long, exiting
@@ -1299,6 +1498,7 @@ Sub MBScript(P0,P1,P2)
 
 
 Sub CastCall(CCMsgFrom,CCMsgTxt)
+   /varset CCMsgTxt ${CommandString}
 |/echo Msg: ${CCMsgFrom} - ${CCMsgTxt}
    /declare a int local	1
    /declare b int local	1
@@ -1427,20 +1627,20 @@ Sub CastCall(CCMsgFrom,CCMsgTxt)
                            /if (${CCMsgTxt.Find[sing]}) {
                               /varset ${sReturn.Arg[1]}TarCnt[${sReturn.Arg[2]}] 1
                               /if (${Spell[${tSpellID}].SpellType.Equal[detrimental]}) {
-                                 /call EditTwist "${BardCombatGems}" ${tGem} add
-                                 /varset BardCombatGems ${Macro.Return}
+                                 /call EditTwist cbt ${tGem} add
+                                 |/varset BardCombatGems ${Macro.Return}
                               } else {
-                                 /call EditTwist "${BardRestGems}" ${tGem} add
-                                 /varset BardRestGems ${Macro.Return}
+                                 /call EditTwist rest ${tGem} add
+                                 |/varset BardRestGems ${Macro.Return}
                               }
                            } else /if (${CCMsgTxt.Find[sung]}) {
                               /varset ${sReturn.Arg[1]}TarCnt[${sReturn.Arg[2]}] 0
-                              /call EditTwist "${BardCombatGems}" ${tGem} delete
-                              /varset BardCombatGems ${Macro.Return}
-                              /call EditTwist "${BardRestGems}" ${tGem} delete
-                              /varset BardRestGems ${Macro.Return}
-                              /call EditTwist "${tTwistGems}" ${tGem} delete
-                              /varset tTwistGems ${Macro.Return}
+                              /call EditTwist cbt ${tGem} delete
+                              |/varset BardCombatGems ${Macro.Return}
+                              /call EditTwist rest ${tGem} delete
+                              |/varset BardRestGems ${Macro.Return}
+                              /call EditTwist twist ${tGem} delete
+                              /varset tTwistGems ${Twist.List}
                               /varset tSpell Removed [${Spell[${tSpellID}].Name}] from list and Tarcnt=0(off).
                               /varcalc tCT 0
                               /goto :tContCast
@@ -1615,7 +1815,11 @@ Sub CastCall(CCMsgFrom,CCMsgTxt)
                         } else {
                            /call ResetSpellResists
                            /varset CastResult PENDING
-                           /squelch /twist once ${tGem}
+                           /if (!${MBPause}) {
+                              /squelch /twist once ${tGem}
+                           } else {
+                              /squelch /twist ${tGem}
+                           }
                            /delay 5
                            /if (${tPrevTarget}) /target id ${tPrevTarget}
                            /goto :tCasting
@@ -2687,11 +2891,20 @@ Sub StuckGems
 
 
 Sub EditTwist(string tTwistList,string tGem,string tAction)
+    
    /declare a int local
    /declare b int local
    /declare tList string local
    /declare sReturn string local
+   /declare tType string local ${tTwistList}
 
+   /if (${tType.Equal[rest]}) {
+      /varset tTwistList ${BardRestGems}
+   } else /if (${tType.Equal[cbt]}) {
+      /varset tTwistList ${BardCombatGems}
+   } else {
+      /varset tTwistList ${Twist.List}
+   }
    /if (!${Select[${tGem},${ValidSpellGems}]} || !${Select[${tAction},add,delete]}) {
       /varset sReturn ${tTwistList}
    } else /if (${tAction.Equal[add]}) {
@@ -2720,6 +2933,13 @@ Sub EditTwist(string tTwistList,string tGem,string tAction)
          /next a
          /varset sReturn ${tList}
       }
+   }
+   /if (${tType.Equal[rest]}) {
+     /varset BardRestGems ${sReturn}
+   } else /if (${tType.Equal[cbt]}) {
+     /varset BardCombatGems ${sReturn}
+   } else {
+      /squelch /twist ${sReturn}
    }
 /return ${sReturn}
 
@@ -2858,10 +3078,10 @@ Sub MQ2Cast(string spellName,string spellType,timer giveUpTimer,string mySub,str
       /squelch /stick pause
       /delay 5 !${Me.Moving}
    }
-   /if (${AdvPath.Following}) {
-      /if (!${AdvPath.Paused} && ${FollowFlag}==1) {
+   /if (${${FollowPlug}.Following}) {
+      /if (!${${FollowPlug}.Paused} && ${FollowFlag}==1) {
          /varset FollowFlag 3
-         /squelch /afollow pause
+         /squelch /docommand /${FollowCommand} pause
       }
    }
    /for i 1 to 4
@@ -2911,9 +3131,9 @@ Sub MQ2Cast(string spellName,string spellType,timer giveUpTimer,string mySub,str
 
    /if (${Stick.Status.Equal[paused]}) /squelch /stick unpause
 
-   /if (${AdvPath.Paused} && ${FollowFlag}>2) {
+   /if (${${FollowPlug}.Paused} && ${FollowFlag}>2) {
       /varset FollowFlag 1
-      /squelch /afollow unpause
+      /squelch /docommand /${FollowCommand} unpause
    }
    /if (${bandSet.Length}) {
       /call SRBandOut
@@ -3028,6 +3248,7 @@ Sub SRSwapItemNum(itemNum,slotNum)
 Sub TFToggle(string sVar,string sSetting)
    /varset ${sVar} ${If[${Select[${sSetting},on,true]},TRUE,${If[${Select[${sSetting},off,false]},FALSE,${If[${${sVar}},FALSE,TRUE]}]}]}
    /bc Setting - ${sVar} ${${sVar}}
+   /if (${sSetting.Equal[mbpause]} && !${MBPause} && ${Me.Class.ShortName.Equal[brd]}) /call ABBuffCheck
 /return
 
 
@@ -3047,11 +3268,14 @@ Sub Command_ABORT(P0)
    /varset DoHeals FALSE
    /if (!${Me.Class.ShortName.Equal[brd]}) /varset DoBuffs FALSE
    /bc Setting - DoHeals, DoBuffs, DoDebuffs & DoMelee FALSE and Following ${SenderName}
+   /varset CommandString "Follow Close"
    /call Command_FOLLOW "follow close"
 /return
 
 
 Sub Command_ADDBUFF(string MsgText)
+
+   /varset MsgText ${CommandString}
    /if (${MsgText.Arg[2].Equal[help]}) {
       /echo ${If[${TimeStampOnEcho},[${Time}] ,]}Format: /mb addbuff "<Spell Name>|<gem,alt,item,ect>" <Alias> <TarType> <TarCnt>
    } else /if (${MsgText.Arg[2].Arg[1,|].Length} && ${MsgText.Arg[2].Arg[2,|].Length}) {
@@ -3079,6 +3303,8 @@ Sub Command_ADDBUFF(string MsgText)
 
 
 Sub Command_ADDDEBUFF(string MsgText)
+ 
+   /varset MsgText ${CommandString}
    /if (${MsgText.Arg[2].Equal[help]}) {
       /echo ${If[${TimeStampOnEcho},[${Time}] ,]}Format: /mb adddebuff "<Spell Name>|<gem,alt,item,ect>" <Alias> <TarType> <TarCnt>
    } else /if (${MsgText.Arg[2].Arg[1,|].Length} && ${MsgText.Arg[2].Arg[2,|].Length}) {
@@ -3106,6 +3332,7 @@ Sub Command_ADDDEBUFF(string MsgText)
 
 
 Sub Command_ATTACK(string MsgText)
+   /varset MsgText ${CommandString}
    /bc Setting - DoMelee TRUE & Attacking
    /varset ACState 100
    /varset DoMelee TRUE
@@ -3115,6 +3342,7 @@ Sub Command_ATTACK(string MsgText)
 
 
 Sub Command_AUTOBANK(string MsgText)
+   /varset MsgText ${CommandString}
    /declare BankerName string local
    /if (${Target.Class.Name.Equal[Banker]}) {
       /varset BankerName ${Target.CleanName}
@@ -3130,6 +3358,7 @@ Sub Command_AUTOBANK(string MsgText)
 
 
 Sub Command_BACKOFF(string MsgText)
+   /varset MsgText ${CommandString}
       /if (${ACState}) {
          /varcalc ACState ${ACState}+2
          /call AdvCombat
@@ -3154,7 +3383,8 @@ Sub Command_BUFFUP(P0)
 
 
 Sub Command_CAMPOUT(string MsgText)
-   /if (${AdvPath.Following}) /squelch /afollow off
+   /varset MsgText ${CommandString}
+   /if (${${FollowPlug}.Following}) /squelch /docommand /${FollowCommand} off
    /if (${Stick.Status.Equal[on]}) /stick off
    /if (${Me.Casting.ID}) {
       /delay 5s !${Me.Casting.ID}
@@ -3194,6 +3424,7 @@ Sub Command_CAMPOUT(string MsgText)
 
 
 Sub Command_DOAA(string MsgText)
+   /varset MsgText ${CommandString}
    /if (${MsgText.Right[-5].Equal[force]}) {
       /bc Msg: Forcing an AA purchase Check
       /call AAPicker force
@@ -3204,6 +3435,7 @@ Sub Command_DOAA(string MsgText)
 
 
 Sub Command_DOCOMMAND(string MsgText)
+   /varset MsgText ${CommandString}
    /echo ${If[${TimeStampOnEcho},[${Time}] ,]}Processing command ${MsgText.Right[-10]}
    /docommand ${MsgText.Right[-10]}
 /return
@@ -3224,6 +3456,7 @@ Sub Command_DOLIST(P0)
       
 
 Sub Command_DOPULL(string MsgText)
+   /varset MsgText ${CommandString}
    /call TFToggle DoPull ${MsgText.Arg[2]}
    /if (${DoPull}) {
       /if (${MsgText.Arg[2].Length} && !${Select[${MsgText.Arg[2]},on,off]}) {
@@ -3237,6 +3470,7 @@ Sub Command_DOPULL(string MsgText)
 
 
 Sub Command_DOQUEST(string MsgText)
+   /varset MsgText ${CommandString}
    /if (${Select[${MsgText.Arg[2]},on,off,true,false]} || !${MsgText.Arg[2].Length}) {
       /call TFToggle DoQuest ${MsgText.Arg[2]}
       /bc Setting - DoQuest ${DoQuest}
@@ -3275,6 +3509,7 @@ Sub Command_DUCK(string MsgText)
 
 
 Sub Command_EXCLUDE(string MsgText)
+   /varset MsgText ${CommandString}
    /if (${MsgText.Right[-8].Equal[save]}) {
       /bc Msg: Saving Exclude List
       /call ProcessExcludeList save
@@ -3287,6 +3522,7 @@ Sub Command_EXCLUDE(string MsgText)
 
 
 Sub Command_EXCLUDEID(string MsgText)
+   /varset MsgText ${CommandString}
    /declare sID string local ${MsgText.Right[-10]}
    /if (${Spawn[${sID}].ID} && ${Spawn[${sID}].ID}==${sID}) {
       /if (!${ExcludeListID.Find[|${sID}|]}) /varset ExcludeListID ${ExcludeListID}${sID}|
@@ -3296,6 +3532,7 @@ Sub Command_EXCLUDEID(string MsgText)
 
 
 Sub Command_FOLLOW(string MsgText)
+   /varset MsgText ${CommandString}
    /squelch /makecamp off
    /varset CampStatus 0
    /varset ACStartHeading 0
@@ -3303,32 +3540,39 @@ Sub Command_FOLLOW(string MsgText)
    /if (!${FollowID}) /return
    /if (${MoveTo.Moving}) /moveto off
    /if (${MsgText.Equal[follow me]} || ${MsgText.Equal[follow]} || ${MsgText.Find[follow close]}) {
-      /if (${AdvPath.Active} && !${MsgText.Find[follow close]}) {
+      /if (${${FollowPlug}.Active} && !${MsgText.Find[follow close]}) {
          /if (${Stick.Status.Equal[ON]}) /squelch /stick off
-         /call AdvPlugCall "${SenderName}"
+         |/call AdvPlugCall "${SenderName}"
+         /target id ${FollowID}
+         /delay 1s ${Target.ID}==${FollowID}
+         /docommand /${FollowCommand}
       }
    } else {
       /varset FollowID ${Spawn[${MsgText.Right[-7]}].ID}
-      /if (${AdvPath.Active}) {
-	     /call AdvPlugCall ${Spawn[${MsgText.Right[-7]}].CleanName}
+      /if (${${FollowPlug}.Active}) {
+         /target id ${FollowID}
+         /delay 1s ${Target.ID}==${FollowID}
+         /docommand /${FollowCommand}
+	     |/call AdvPlugCall ${Spawn[${MsgText.Right[-7]}].CleanName}
 	  }
    }   
    /varset FollowName ${Spawn[${FollowID}].Name}
    /varset FollowFlag ${If[!${FollowID} || ${Spawn[${FollowID}].Type.Equal[corpse]},0,1]}
-   /call AdvPathCall
+   |/call AdvPathCall
    /if (${MsgText.Equal[follow close]} && ${FollowID}) {
-      /if (${AdvPath.Active}) /afollow off
+      /if (${${FollowPlug}.Active}) /docommand /${FollowCommand} off
       /if (${Target.ID}!=${FollowID}) {
          /tar id ${FollowID}
          /delay 5 ${Target.ID}==${FollowID}
       }
       /squelch /stick 5 uw
    }
-   /if (${Stick.Status.Equal[on]} || ${AdvPath.Following}) /bc Msg: AFing ${Spawn[${FollowID}].CleanName}
+   /if (${Stick.Status.Equal[on]} || ${${FollowPlug}.Following}) /bc Msg: AFing ${Spawn[${FollowID}].CleanName}
 /return
 
 
 Sub Command_GETBANK(string MsgText)
+   /varset MsgText ${CommandString}
    /if (${Cursor.ID}) {
       /call GetBankItem "${Cursor.Name}" ${MsgText.Right[-7]}
    } else /if (${MsgText.Right[-7].Length}) {
@@ -3340,6 +3584,7 @@ Sub Command_GETBANK(string MsgText)
 
 
 Sub Command_GIVE(string MsgText)
+   /varset MsgText ${CommandString}
    /if (${MsgText.Right[-5].Length}) {
       /bc Msg: Giving items to ${MsgText.Arg[2]}
       /call GiveCheck ${MsgText.Right[-5]}
@@ -3348,6 +3593,7 @@ Sub Command_GIVE(string MsgText)
 
 
 Sub Command_GOTO(string MsgText)
+   /varset MsgText ${CommandString}
    /if (${MsgText.Arg[2].Length} && ${MsgText.Arg[3].Length}) {
       /if (!${Me.Standing}) /stand
       /moveto loc ${MsgText.Arg[2]} ${MsgText.Arg[3]}
@@ -3356,6 +3602,7 @@ Sub Command_GOTO(string MsgText)
 
 
 Sub Command_HANDIN(string MsgText)
+   /varset MsgText ${CommandString}
    /declare tTarget string local ${Target.CleanName}
    /declare cItem string local ${Cursor.Name}
    /if (${MsgText.Arg[2].Length}) /varset tTarget ${MsgText.Arg[2]}
@@ -3370,6 +3617,7 @@ Sub Command_HANDIN(string MsgText)
 
 
 Sub Command_HELP(string MsgText)
+   /varset MsgText ${CommandString}
    /if (!${MsgText.Right[-4].Length}) {
       /echo ${If[${TimeStampOnEcho},[${Time}] ,]}Modbot command list.  Use "/mb help command" for specific help on each.
       /echo ${If[${TimeStampOnEcho},[${Time}] ,]}Simple Toggle Commands: ${OnOffCommands}
@@ -3381,6 +3629,7 @@ Sub Command_HELP(string MsgText)
 
 
 Sub Command_HAILDELAY(P0)
+
    /declare delaytarget int local ${NetBots[${SenderName}].TargetID}
    /if (!${delaytarget}) {
       /bc Msg: No Target for HailDelay
@@ -3415,6 +3664,7 @@ Sub Command_HOLDUP(P0)
 
 
 Sub Command_INCLUDE(string MsgText)
+   /varset MsgText ${CommandString}
    /bc Msg: Including ${MsgText.Right[-8]}
    /if (${ExcludeList.Find[${MsgText.Right[-8]}]}) {
       /declare sVarM string local ${MsgText.Right[-8]}|
@@ -3428,6 +3678,7 @@ Sub Command_INCLUDE(string MsgText)
 
 
 Sub Command_INCLUDEID(string MsgText)
+   /varset MsgText ${CommandString}
    /declare sID string local ${MsgText.Right[-10]}
    /if (${ExcludeListID.Find[|${sID}|]}) {
       /declare sVarM string local ${sID}|
@@ -3440,6 +3691,7 @@ Sub Command_INCLUDEID(string MsgText)
 
 
 Sub Command_INVITEALL(string MsgText)
+   /varset MsgText ${CommandString}
    /declare i int local
    /if (${MsgText.Find[ ]}) {
       /echo ${If[${TimeStampOnEcho},[${Time}] ,]}Starting modbot on channel - ${MsgText.Arg[2]}
@@ -3460,6 +3712,7 @@ Sub Command_INVITEALL(string MsgText)
 
 
 Sub Command_LETSROLL(string MsgText)
+   /varset MsgText ${CommandString}
    /bc Setting - DoCures,DoBuffs,DoHeals,DoMelee,DoEvents,DoDebuffs TRUE
    /varset DoDebuffs TRUE
    /varset DoHeals TRUE
@@ -3476,7 +3729,7 @@ Sub Command_LETSROLL(string MsgText)
 
 Sub Command_MAKECAMP(P0)
    /squelch /stick off
-   /if (${AdvPath.Following}) /afollow off
+   /if (${${FollowPlug}.Following}) /docommand /${FollowCommand} off
    /varset FollowFlag 0
    /makecamp on
    /varset MakeCampX ${Me.X}
@@ -3493,6 +3746,7 @@ Sub Command_MANA(P0)
 
 
 Sub Command_MBPAUSE(string MsgText)
+   /varset MsgText ${CommandString}
    /if (${Select[${MsgText.Arg[2]},on,true]} && ${ACState}) {
       /varcalc ACState ${ACState}+2
       /call AdvCombat
@@ -3508,6 +3762,7 @@ Sub Command_MBPAUSE(string MsgText)
 
 
 Sub Command_MBWAYPLAY(string MsgText)
+   /varset MsgText ${CommandString}
    /call MBWayPlay ${MsgText.Right[-10]}
    /if (${Macro.Return.Equal[false]}) {
       /bc Msg: Problem with playback
@@ -3516,6 +3771,7 @@ Sub Command_MBWAYPLAY(string MsgText)
 
 
 Sub Command_MBWAYREC(string MsgText)
+   /varset MsgText ${CommandString}
    /call MBWayRecord ${MsgText.Right[-9]}
 /return
 
@@ -3581,6 +3837,7 @@ Sub Command_SAYDELAY(string MsgText)
 
 
 Sub Command_SAYTARGET(string MsgText)
+   /varset MsgText ${CommandString}
    /if (${NetBots[${SenderName}].TargetID}) {
       /declare saytarget int local ${NetBots[${SenderName}].TargetID}
       /target id ${saytarget}
@@ -3594,11 +3851,13 @@ Sub Command_SAYTARGET(string MsgText)
 
 
 Sub Command_SCRIPT(string MsgText)
+   /varset MsgText ${CommandString}
   /call MBScript "${MsgText.Right[-7]}" ${SenderName}
 /return
 
 
 Sub Command_SEARCH(string MsgText)
+   /varset MsgText ${CommandString}
    /declare SearchText string local ${MsgText.Right[-7]}
    /declare ReplyText string local ${FindItemCount[${SearchText}]} on me and ${FindItemBankCount[${SearchText}]} in my bank. 
    /declare Count1 int local ${FindItemCount[${SearchText}]}
@@ -3611,6 +3870,7 @@ Sub Command_SEARCH(string MsgText)
 
 
 Sub Command_SELL(string MsgText)
+   /varset MsgText ${CommandString}
    /if (!${MsgText.Right[-5].Length} && ${Target.Class.Name.Equal[Merchant]}) {
       /declare MerchName string local ${Target.CleanName}
    } else /if (${MsgText.Right[-5].Length}) {
@@ -3624,6 +3884,8 @@ Sub Command_SELL(string MsgText)
 
 
 Sub Command_SETINIVAR(string MsgText)
+   /varset MsgText ${CommandString}
+   /echo ${MsgText}
    /if (!${MsgText.Arg[2].Length} || !${MsgText.Arg[3].Length}) {
       /echo ${If[${TimeStampOnEcho},[${Time}] ,]}Usage: /mb setinivar <Varname> <Setting>  (use quotes around multiple word settings)
       /return
@@ -3705,6 +3967,7 @@ Sub Command_SETINIVAR(string MsgText)
 
 
 Sub Command_SETPULLER(string MsgText)
+   /varset MsgText ${CommandString}
    /declare s string local ${MsgText.Right[-10]}
    /if (${s.Length}) {
       /varset PullerName ${s.Left[1].Upper}${s.Right[-1]}
@@ -3727,6 +3990,7 @@ Sub Command_SETPULLER(string MsgText)
 
 
 Sub Command_SETTANK(string MsgText)
+   /varset MsgText ${CommandString}
    /declare s string local ${MsgText.Right[-8]}
    /if (${s.Length}) {
       /varset TankName ${s.Left[1].Upper}${s.Right[-1]}
@@ -3749,11 +4013,13 @@ Sub Command_SETTANK(string MsgText)
 
 
 Sub Command_STOP(P0)
+   /echo ${Time} Stop
    /if (${Select[${ACState},2,4]}) {
       /varset ACState 1
    }
-   /if (${AdvPath.Following} || ${AdvPath.Paused}) {
-      /call AdvPlugCall off
+   /if (${${FollowPlug}.Following} || ${${FollowPlug}.Paused}) {
+      |/call AdvPlugCall off
+      /docommand /${FollowCommand} off
    } else {
       /squelch /stick off
       /if (${CampStatus}==1) {
@@ -3771,13 +4037,14 @@ Sub Command_STOP(P0)
    /varset ACStartY ${Me.Y}
    /varset ACStartX ${Me.X}
    /varset ACStartHeading ${Me.Heading.DegreesCCW}
-   /if (!${AdvPath.Following} || ${Stick.Status.Equal[off]}) {
+   /if (!${${FollowPlug}.Following} || ${Stick.Status.Equal[off]}) {
       /bc Msg: No longer on AF
    }
 /return
 
 
 Sub Command_SWITCH(string MsgText)
+   /varset MsgText ${CommandString}
    /varset ACSwitchID 0
    /if (!${MsgText.Arg[2].Length}) {
       /if (${NetBots[${SenderName}].TargetID}) {

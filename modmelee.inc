@@ -153,7 +153,7 @@ Sub AdvCombat(P0,P1,P2)
          /if (${FollowFlag}) {
             /varset ACState 2
             /varset FollowFlag 0
-            /if (${AdvPath.Active}) {
+            /if (${${FollowPlug}.Active}) {
                /call AdvPlugCall stop
             } else {
                /squelch /stick off
@@ -197,7 +197,7 @@ Sub AdvCombat(P0,P1,P2)
       /varset SpawnCheckTimer 0
       /call ADSpawnCheck
       /if (${Select[${ACState},2,4]} && (!${Me.Combat} && !${Melee.Combat} || !${ACMATarget} || ${Spawn[${FollowName}].Distance}>${ACLeash} || !${CurrentMobCount})) {
-         /if (${AdvPath.Active}) {
+         /if (${${FollowPlug}.Active}) {
             /call AdvPlugCall "${FollowName}"
          }
          /varset FollowFlag 1
@@ -285,7 +285,12 @@ Sub AdvCombat(P0,P1,P2)
          /if (${Me.PctMana}>${ACManaPct} || (${Me.MaxMana}==0 && ${ACManaPct}!=101)) {
             /if (!${Me.Mount.ID} && !${Me.Standing} && (!${Melee.Combat} || !${Me.Combat})) /stand
             /if (${DoMelee} && ${Me.Standing} && ${Target.ID}==${ACMATarget} && (!${Melee.Combat} || !${Me.Combat}) && (${Me.Class.ShortName.Equal[brd]} || (!${Me.Casting.ID} && !${Cast.Status.Find[C]}))) {
+               /if (${${FollowPlug}.Following}) /docommand /${FollowCommand} pause
+               /if (${Stick.Status.Equal[on]}) /stick off
+               /delay 1s ${Stick.Status.Equal[Off]} && (${${FollowPlug}.Paused} || !${${FollowPlug}.Following})
                /killthis
+               |/delay 2 ${Stick.Status.Equal[on]}
+               |/if (${Stick.Status.Equal[off]}) /stick hold ${If[${Target.Height}<5,9,${Math.Calc[${Target.Height}+3].Int}]} ${If[!${Me.GroupSize} || ${Melee.AggroMode},moveback,${If[${Melee.BackStabbing},behind,!front]}]} ${If[${Me.Underwater},uw,]} 
                /varset ACMobProbT 3s
             }
          } else /if (${Melee.Combat}) {
@@ -293,6 +298,7 @@ Sub AdvCombat(P0,P1,P2)
             /if (${Melee.Combat}) /attack off
             /delay 1s !${Melee.Combat}
             /squelch /stick off
+            /if (${FollowName.Length} && ${${FollowPlug}.Paused}) /docommand /${FollowCommand} unpause
          }
       }
    }
@@ -332,7 +338,10 @@ Sub Event_MobProb(string Line)
    /if (${Melee.Combat} && ${Me.Standing} && ${Target.ID}==${ACMATarget} && ${Me.Combat} && (${Me.Class.ShortName.Equal[brd]} || !${Me.Casting.ID})) {
       /if (${Target.Distance3D}<=${ACLeash} && ${Target.Distance3D}>${Target.MaxRangeTo} && !${Stick.Status.NotEqual[on]}) /squelch /stick ${Math.Calc[${Target.MaxRangeTo}-4]}
       /if (!${Melee.Combat}) /killthis
-      /if (${Melee.Combat} && ${Stick.Status.NotEqual[on]} && ${Target.Distance}<=25) /squelch /stick 10 ${Target.ID}
+      /if (${Melee.Combat} && ${Stick.Status.NotEqual[on]} && ${Target.Distance}<=25) {
+         | /squelch /stick 10 ${Target.ID}
+         /stick hold ${If[${Target.Height}<5,9,${Math.Calc[${Target.Height}+3].Int}]} ${If[!${Me.GroupSize} || ${Melee.AggroMode},moveback,${If[${Melee.BackStabbing},behind,!front]}]} ${If[${Me.Underwater},uw,]} 
+         }
       /if (${Melee.Combat} && ${Stick.Status.Equal[on]} && ${Target.Distance}<=25) {
          /if (${Me.Levitating}) {
 		    /squelch /face ${Target}

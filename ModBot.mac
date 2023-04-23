@@ -18,7 +18,7 @@
 #include modextra.inc
 
 | Uncomment these if you'd like commands to work via group and chat channels.
-| #chat group
+ #chat group
 | #chat chat
  #chat tell
 
@@ -77,11 +77,21 @@ Sub Main(INI)
       /if (!${Defined[AQGem]}) /echo ${If[${TimeStampOnEcho},[${Time}] ,]}I don't see any Cures in your ini
    }
    
+| EQBC channels Join specific classes, then group channels
+/declare chanList string local ${Me.Class.ShortName}
+/if (${Select[${Me.Class.ShortName},shm,clr,dru]}) /varset chanList ${chanList} healers
+/if (${Select[${Me.Class.ShortName},rng,bst,brd,shd,pal]}) /varset chanList ${chanList} hybrid
+/if (${Select[${Me.Class.ShortName},mag,wiz,enc,nec]}) /varset chanList ${chanList} casters
+/if (${Select[${Me.Class.ShortName},war,rog,mnk,brz,ber]}) /varset chanList ${chanList} melee
+/if (${Select[${Me.Class.ShortName},war,shd,pal]}) /varset chanList ${chanList} tanks
+/if (!${Select[${Ini["${IniFile}","Settings","EQBCChannels",NOTFOUND]},NOTFOUND,NULL]}) /varset chanList ${chanList} ${Ini["${IniFile}","Settings","EQBCChannels"]}
+/bccmd channels ${chanList}
+
 | Create Empty Defense script, if not exists
    /call MBScript Defense Startup
    /call MBScript MBStartup
    
-   /if (${AdvPath.Following}) /call AdvPlugCall off
+   
    /doevents flush
    /if (${Window[RespawnWnd].Open} || ${Me.State.Equal[HOVER]}) {
       /call Event_Slain
@@ -96,11 +106,27 @@ Sub Main(INI)
    /if (${Me.Shrouded} && ${DoAA}) /call AAPicker 
    /if (${Ini["${IniFile}",Script-Startup,Commands]}) /call MBScript Startup
 
-   /echo ${If[${TimeStampOnEcho},[${Time}] ,]}ModBot v5.22 has started!
+   /echo ${If[${TimeStampOnEcho},[${Time}] ,]}EmuModBot v5.22 has started!
    /echo
-
+   /if (${${FollowPlug}.Following}) /call AdvPlugCall off
 :MainLoop
    /delay 1
+   /if (${FollowName.Length} && ${Spawn[${FollowName}].ID} && !${CampStatus}  && !${Spawn[${Me}'s corpse'].ID}) {
+  |/docommand ${If[${Defined[CurrLoc]},/call FollowFunction "${FollowName}",/varset FollowFlag 1]}
+  |/docommand ${If[${${FollowPlug}.Active} && ${AdvPlug},/call AdvPlugCall "${FollowName}",/varset FollowFlag 1]}
+  /if (${DoLoot} && ${Target.Type.Equal[corpse]}) /goto :tContNoFollow
+  /if (!${${FollowPlug}.Paused} && ${Spawn[${FollowName}].Distance} > 35 && !${Me.Moving} && !${Melee.Combat}) {
+    /if (${Stick.Status.Equal[on]}) /stick off
+    /target id ${Spawn[${FollowName}].ID}
+    /delay 5 ${Target.ID}==${Spawn[${FollowName}].ID}
+    /if (!${${FollowPlug}.Following}) {
+      /docommand /${FollowCommand}
+    }
+  }
+  /if (${${FollowPlug}.Paused}) /docommand /${FollowCommand} unpause
+:tContNoFollow
+}
+
    /if (!${Zone.Name.Equal[${ZoneName}]} || (!${Window[RespawnWnd].Open} && !${Me.ID})) {
       /call Event_DelayOnZone
    }
@@ -194,6 +220,7 @@ Sub Main(INI)
    /if (${Stick.Status.Equal[PAUSED]}) {
       /if (${DoMelee} && ${ACState} && ${Cast.Status.Equal[I]}) /squelch /stick unpause
    }
+   /if (${FollowName.Length} && ${Spawn[${FollowName}].Distance}> 20) /call AdvPlugCall ${FollowName}
    /if (!${MBPause} && !${MiscCheckTimer} && !${APPullDelay}) {
       /varset MiscCheckTimer 1s
       /if (${DoStuckGems}) {
@@ -289,6 +316,6 @@ Sub Main(INI)
 
 Sub MainExit
    /if (${Me.Class.ShortName.Equal[brd]}) /twist off
-   /if (${AdvPath.Following}) /afollow off
+   /if (${${FollowPlug}.Following}) /docommand /${FollowCommand} off
    /endmacro
 /return

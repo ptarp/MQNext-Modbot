@@ -460,11 +460,11 @@ Sub SitCheck
    /if ((${Me.MaxMana}==0 || ${Me.PctMana}>=${SitManaPct}) && ${Me.PctEndurance}>=${SitEndurPct}) /return
    /if (${Me.Mount.ID} || ${Me.Moving} || ${Me.State.Equal[feign]} || ${Me.Sitting}) /return
    /if ((${Me.Casting.ID} && !${Me.Class.ShortName.Equal[BRD]}) || ${ACState} || ${Melee.Combat} || (${TankName.Equal[${Me.Name}]} && ${ADMobFound})) /return
-   /if (${FollowFlag} && ${Spawn[${FollowID}].Distance}>=15 && !${AdvPath.Idle}) /return
+   /if (${FollowFlag} && ${Spawn[${FollowID}].Distance}>=15 && !${${FollowPlug}.Idle}) /return
    /if (${Me.Class.ShortName.Equal[BRD]}) {
       /if (${Twist} && !${Me.State.Equal[sit]} && ${Twist.List.NotEqual[${BardRestGems} ]}) /return
    }
-   /if (${AdvPath.Following} && ${Spawn[${FollowID}].Distance}>=9 && ${Target.ID}==${FollowID} && !${Me.State.Equal[sit]}) {
+   /if (${${FollowPlug}.Following} && ${Spawn[${FollowID}].Distance}>=9 && ${Target.ID}==${FollowID} && !${Me.State.Equal[sit]}) {
       /squelch /face id ${Target.ID}
       /keypress up hold
       /delay 3s ${Spawn[${FollowID}].Distance}<8
@@ -502,118 +502,98 @@ Sub SitCheck
 
 
 Sub AdvPathCall
-   /declare tZoneName string local
-   /declare tZoneTimer timer local
-   /if (${Stick.Status.Equal[ON]} && ${Stick.Distance}==5.00) /return
-   /if ((${Me.State.Equal[feign]} || ${Spawn[${FollowID}].Type.Equal[corpse]}) && ${AdvPath.Following} && !${AdvPath.Paused}) {
-      /afollow off
-      /return
-   }
-   /if (!${FollowFlag} || ${Me.State.Equal[feign]}) /return
+/declare tZoneName string local
+/declare tZoneTimer timer local
+/if (${Stick.Status.Equal[ON]} && ${Stick.Distance}==5.00) /return
+/if ((${Me.State.Equal[feign]} || ${Spawn[${FollowID}].Type.Equal[corpse]}) && ${${FollowPlug}.Following} && !${${FollowPlug}.Paused}) /multiline ; /squelch /docommand /${FollowCommand} off;/return
+/if (${FollowFlag} && !${Me.State.Equal[feign]}) {
+  /if (${Me.Level}<51 && ${Me.Sneaking}&&${Group.Members}) /multiline ; /doability sneak;/delay 5
+  /if ((${Spawn[${FollowID}].Distance3D}>${FollowDistance} && ${Spawn[${FollowID}].Name.Find[${FollowName}]}) || (!${NetBots[${FollowName}].InZone} || !${Spawn[${FollowName}].ID}) && (!${Me.Mount.ID} && !${Me.Standing})) /sit off
+  /if ((${NetBots[${FollowName}].InZone} || ${Defined[${Spawn["${FollowName}"]}]}) && ${FollowID}!=${Spawn[pc ${FollowName}].ID}) /multiline ; /squelch /stick off;/varset FollowID ${Spawn[pc ${FollowName}].ID};/varset FollowFlag 1
+  /if (${Defined[CurrLoc]}) {
+    /call AdvPathPoll
+    /return
+  } else /if (${${FollowPlug}.Active} && ${${FollowPlug}.Following}) {
+    /call AdvPlugCall
+|    /return
+    /goto :tZoneCheck
+  }
 
-   /if (${Me.Level}<51 && ${Me.Sneaking} && ${Group.Members}) { 
-      /doability sneak
-      /delay 5
-   }
-   /if ((${Spawn[${FollowID}].Distance3D}>${FollowDistance} && ${Spawn[${FollowID}].Name.Find[${FollowName}]}) || (!${NetBots[${FollowName}].InZone} || !${Spawn[${FollowName}].ID}) && (!${Me.Mount.ID} && !${Me.Standing})) /sit off
-   /if ((${NetBots[${FollowName}].InZone} || ${Defined[${Spawn["${FollowName}"]}]}) && ${FollowID}!=${Spawn[pc ${FollowName}].ID}) {
-      /squelch /stick off
-      /varset FollowID ${Spawn[pc ${FollowName}].ID}
-      /varset FollowFlag 1
-   }
-   /call AdvPlugCall
-   /if (!(${NetBots[${FollowName}].InZone} || ${Spawn[${FollowName}].ID}) && ${FollowFlag}<10) {
-      /if (${NetBots[${FollowName}].State.Equal[dead]} || ${Spawn[${FollowName}'s corpse].ID} || ${FollowFlag}>=${FollowFlagZoneDelay}+20) {
-         /squelch /stick off
-         /if (${AdvPath.Following}) /squelch /afollow off
-         /varset FollowFlag 0
-         /return
-      }
-      /if (${Zone.Name.Equal[${ZoneName}]}) {
-         /if (!${Me.Mount.ID} && !${Me.Standing}) /stand
-         /bc Msg: Trying to Zone
-         /varset FollowFlag 10
-         /if (${Spawn[Magus radius 100].ID}) {
+  /if (${Stick.Status.Equal[paused]}&&${Cast.Status.Equal[I]}&&!${Me.Casting.ID}) /stick unpause
+  /if (${Select[${Stick},off]}) {
+    /if (${FollowFlag}>=2) {
+      /if (!${Zone.Name.Equal[${ZoneName}]}) /return
+      /delay 5s ${Spawn[${FollowID}].ID}
+    }
+    /if ((${NetBots[${FollowName}].InZone} || ${Spawn[${FollowName}].ID}) && ${Spawn[${FollowName}].ID}) {
+      /if (${FollowFlag}==2) /multiline ; /varset FollowFlag 0;/return
+|      /if (${FollowFlag}==2 && ${Spawn[pc radius ${Math.Calc[${BotFollowDistance}+15]} ${FollowName}].ID}) /return
+      /if (${Target.ID}!=${FollowID}) /tar id ${FollowID}
+      /delay 8s ${Target.ID}==${FollowID}
+      /if (${Target.ID}!=${FollowID}) /multiline ; /tar id ${FollowID};/delay 5
+      /multiline ; /squelch /stick hold ${FollowDistance} id ${FollowID} uw;/varset FollowFlag 2;/return
+    }
+:tZoneCheck
+    /if (!(${NetBots[${FollowName}].InZone} || ${Spawn[${FollowName}].ID}) && ${FollowFlag}<10) {
+      /if (${Select[${NetBots[${FollowName}].State},dead]} || ${Spawn[${FollowName}'s corpse].ID} || ${FollowFlag}>=${FollowFlagZoneDelay}+20) /multiline ; /squelch /stick off;/if (${${FollowPlug}.Following}) /squelch /squelch /docommand /${FollowCommand} off;/varset FollowFlag 0;/return
+        /if (${Zone.Name.Equal[${ZoneName}]}) {
+          /if (!${Me.Mount.ID} && !${Me.Standing}) /stand
+          /bc Trying to Zone
+          /varset FollowFlag 10
+          /if (${Spawn[Magus radius 100].ID}) {
             /varset tZoneTimer 350s
-:tMasterZone
+ :tMasterZone
             /if (!${NetBots[${FollowName}].ID} && ${tZoneTimer}) /goto :tMasterZone
-            /if (!${Zone[${NetBots[${FollowName}].Zone}].ShortName.Length} || ${Me.Invis} || !${NetBots[${FollowName}].ID}) { 
-               /bc Msg: Can't zone through
-               /varset FollowFlag 0
-               /return
-            }
+            /if (!${Zone[${NetBots[${FollowName}].Zone}].ShortName.Length} || ${Me.Invis} || !${Spawn[pc ${FollowName}].ID}) /multiline ; /bc Can't zone through;/varset FollowFlag 0;/return
             /varset tZoneName ${Zone[${NetBots[${FollowName}].Zone}].ShortName}
-         }
-         /call MBZone ${tZoneName}
-         /if (!${Macro.Return}) { 
-            /bc Msg: Can't zone through
-            /varset FollowFlag 0
-         }
+           }
+        /call MBZone ${tZoneName}
+        /if (!${Macro.Return} && !${Spawn[pc ${FollowName}].ID}) /multiline ; /bc Can't zone through;/varset FollowFlag 0
       }
-   }
+    }
+  }
+}
 /return
-
 
 Sub AdvPlugCall(string Toggle)
 | Toggle : Can be [on//pause/off/stop/,ToonName]
-   /if (!${AdvPath.Paused} && !${AdvPath.Idle} && !${Toggle.Length} && ${Me.Moving} && ${AdvPath.Following}) /return
-   /if (!${AdvPath.Active} || ${AdvPath.Paused} && ${FollowFlag}<2 && !${ACState} && !${Toggle.Length}) { 
-      /varset FollowFlag 0
-      /return
-   }
+|/echo ${Time} : AdvPlugCall(${Toggle})
+/if (!${${FollowPlug}.Paused} && !${${FollowPlug}.Idle} && !${Defined[Toggle]} && ${Me.Moving} && ${${FollowPlug}.Following}) /return
+/if (!${${FollowPlug}.Active} || ${${FollowPlug}.Paused} && ${FollowFlag}<2 && !${ACState} && !${Defined[Toggle]}) /multiline ; /varset FollowFlag 0;/goto :aPlugCallEnd
 | Check if AdvPath getting stuck, or sitting when should be following..  Not needed with revised plugin.  (added keypress)
-   /if (!${AdvPath.Paused} && !${AdvPath.Idle} && !${Toggle.Length} && ${Spawn[pc ${FollowName}].Distance}>30 && (${Me.State.Equal[sit]} || !${Me.Moving})) {
-      /if (${Me.State.Equal[sit]}) /stand
-      /delay 1s ${Me.State.Equal[STAND]}
-      /if (!${Me.Moving}) { 
-         /squelch /afollow off
-         /goto :aFollowStick
-      }
-      /return
-   }
-   /if (${Toggle.Length}) {
-      /if (${Select[${Toggle},off,stop]}) { 
-         /squelch /afollow off
-         /varset FollowFlag 0
-         /return
-      }
-|     /if (${Select[${Toggle},off,stop]} && ${AdvPath.Following}) {
-|        /varset FollowFlag 0
-|        /squelch /afollow off
-|        /return
-|     }
-      /if (${AdvPath.Following} && ${Toggle.Find[pause]}) { 
-         /squelch /afollow pause
-         /varset FollowFlag 4
-         /return
-      }
-      /if (${Toggle.Equal[on]} && !${AdvPath.Following} && ${FollowName.Length} && ${FollowID} && ${Spawn[pc ${FollowName}].ID}) /goto :aFollowStick
-      /if (${Spawn[pc ${Toggle}].ID}) {
-         /if (${AdvPath.Following} && ${Spawn[pc ${Toggle}].ID}!=${Spawn[pc ${AdvPath.Monitor}].ID} || ${AdvPath.Paused}) /squelch /afollow off
-         /if (!${FollowID} || !${FollowName.Length} || ${FollowID}!=${Spawn[pc ${Toggle}].ID}) {
-            /varset FollowID ${Spawn[pc ${Toggle}].ID}
-            /varset FollowName ${Spawn[pc ${Toggle}].CleanName}
-         }
-         /goto :aFollowStick
-      }
-   }
-   /if (${FollowFlag} && ${AdvPath.Paused}) /return
-   /if (${AdvPath.Following} && !${ACState} && !${Toggle.Length} && ${FollowFlag}) /return
-   /if (${AdvPath.Paused} && ${ACState} && ${Spawn[pc ${TankName}].Distance}<=${ACLeash}+20) /return
-   /if (${FollowName.Length} && ${FollowID} && !${ACState} && !${AdvPath.Following} && !${AdvPath.Paused}) /goto :aFollowStick
-   /if (${AdvPath.Following} && ${ACState} && !${AdvPath.Paused}) { 
-      /squelch /afollow pause
-      /return
-   }
-|  /if (${AdvPath.Paused} && ${FollowFlag}==1 && !${ACState}) /squelch /afollow unpause;/goto :aPlugCallEnd
-   /return
+ /if (!${${FollowPlug}.Paused} && !${${FollowPlug}.Idle} && !${Defined[Toggle]} && ${Spawn[pc ${FollowName}].Distance}>30 && (${Me.State.Equal[sit]} || !${Me.Moving})) {
+  /if (${Me.State.Equal[sit]}) /stand
+  /delay 1s ${Me.State.Equal[STAND]}
+  /if (!${Me.Moving}) /multiline ; /squelch /docommand /${FollowCommand} off;/goto :aFollowStick
+  /return
+ }
+/if (${Defined[Toggle]} && ${Toggle.Length}>1) {
+  /if (${Select[${Toggle},off,stop]}) /multiline ; /squelch /squelch /docommand /${FollowCommand} off;/varset FollowFlag 0;/goto :aPlugCallEnd
+  /if (${Select[${Toggle},off,stop]} && ${${FollowPlug}.Following}) /multiline ; /varset FollowFlag 0;/squelch /squelch /docommand /${FollowCommand} off;/goto :aPlugCallEnd
+  /if (${${FollowPlug}.Following} && ${Toggle.Find[pause]}) /multiline ;/squelch /squelch /docommand /${FollowCommand} pause;/varset FollowFlag 4;/goto :aPlugCallEnd
+  /if (${Toggle.Equal[on]} && !${${FollowPlug}.Following} && ${FollowName.Length} && ${FollowID} && ${Spawn[pc ${FollowName}].ID}) /goto :aFollowStick
+  /if (${Spawn[pc ${Toggle}].ID}) {
+    /if (${${FollowPlug}.Following} && ${Spawn[=${Toggle}].ID}!=${Spawn[pc ${${FollowPlug}.Monitor}].ID} || ${${FollowPlug}.Paused}) /squelch /squelch /docommand /${FollowCommand} off
+    |/echo /if (!${FollowID} || !${FollowName.Length} || ${FollowID}!=${Spawn[=${Toggle}].ID}) /multiline ; /varset FollowID ${Spawn[=${Toggle}].ID};/varset FollowName ${Spawn[=${Toggle}].CleanName}
+    /if (!${FollowID} || !${FollowName.Length} || ${FollowID}!=${Spawn[=${Toggle}].ID}) /multiline ; /varset FollowID ${Spawn[=${Toggle}].ID};/varset FollowName ${Spawn[=${Toggle}].CleanName}
+    /goto :aFollowStick
+  }
+}
+/if (${FollowFlag} && ${${FollowPlug}.Paused}) /return
+/if (${${FollowPlug}.Following} && !${ACState} && !${Toggle.Length} && ${FollowFlag}) /return
+/if (${${FollowPlug}.Paused} && ${ACState} && ${Spawn[pc ${TankName}].Distance}<=${ACLeash}+20) /return
+/if (${FollowName.Length} && ${FollowID} && !${ACState} && !${${FollowPlug}.Following} && !${${FollowPlug}.Paused}) /goto :aFollowStick
+/if (${${FollowPlug}.Following} && ${ACState} && !${${FollowPlug}.Paused}) /multiline ; /squelch /squelch /docommand /${FollowCommand} pause;/goto :aPlugCallEnd
+ /if (${${FollowPlug}.Paused} && ${FollowFlag}==1 && !${ACState}) /squelch /squelch /docommand /${FollowCommand} unpause;/goto :aPlugCallEnd
+
+|/return
 :aFollowStick
-   /if (!${Spawn[pc ${FollowName}].ID} || !${FollowID} && !${FollowName.Length} || ${FollowName.Equal[${Me.CleanName}]} && (!${FollowID} || ${FollowID}==${Me.ID})) /return
-   /if (${Me.Casting.ID} && ${Me.Class.ShortName.NotEqual[brd]}) /delay 10s !${Me.Casting.ID}
-   /if (${Spawn[pc ${FollowName}].ID}!=${FollowID} && ${FollowName.NotEqual[${Me.CleanName}]}) /varset FollowID ${Spawn[pc ${FollowName}].ID}
-   /squelch /target id ${FollowID}
-   /delay 5s ${Target.ID}==${FollowID}
-   /squelch /afollow on
-   /varset FollowFlag 1
+  /if (!${Spawn[pc ${FollowName}].ID} || !${FollowID} && !${FollowName.Length} || ${FollowName.Equal[${Me.CleanName}]} && (!${FollowID} || ${FollowID}==${Me.ID})) /return
+  /if (${Spawn[pc ${FollowName}].ID}!=${FollowID} && ${FollowName.NotEqual[${Me.CleanName}]}) /varset FollowID ${Spawn[pc ${FollowName}].ID}
+  /squelch /target id ${FollowID}
+  /delay 1s ${Target.ID}==${FollowID}
+  /if (${Me.Casting.ID} && ${Me.Class.ShortName.NotEqual[brd]}) /delay 1s !${Me.Casting.ID}
+ /squelch /squelch /docommand /${FollowCommand} on
+  /varset FollowFlag 1
 :aPlugCallEnd
 /return

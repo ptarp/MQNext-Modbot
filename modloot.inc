@@ -167,6 +167,7 @@ Sub LootItem(int i,DoWhat,WhichButton)
 
 
 Sub LootMobs
+/declare LMFollow bool local FALSE
  /if (!${LootMobs} || ${SpawnCount[npc los radius ${MobsTooClose} zradius ${ZRadius} noalert ${AlertList}]}>${SpawnCount[npc untargetable los radius ${MobsTooClose} zradius ${ZRadius} noalert ${AlertList}]} || !${SpawnCount[corpse radius ${CorpseRadius} zradius ${ZRadius} noalert 25]} || ${Me.Combat} || (${Cursor.NoDrop} && !${Me.FreeInventory}) || ${RelootTimer}) /return
  /if (!${CorpseRotTimer}) /squelch /alert clear 25
  /declare i int local ${Math.Rand[20]}
@@ -181,11 +182,11 @@ Sub LootMobs
  /if (${DeadCount}) {
    /if (${Me.Sneaking}) /multiline ; /doability sneak;/delay 5
    /if (${FollowFlag}) {
-     /declare LMFollow bool local TRUE
+     /varset LMFollow TRUE
      /squelch /stick off
-     /if (${FollowFlag} && !${AdvPath.Paused}) {
+     /if (${FollowFlag} && !${${FollowPlug}.Paused}) {
        /varset FollowFlag 3
-       /squelch /afollow pause
+       /squelch /docommand /${FollowCommand} pause
        /echo ${If[${TimeStampOnEcho},[${Time}] ,]}Follow paused.
      }
    } else {
@@ -217,7 +218,7 @@ Sub LootMobs
    /varset FollowFlag 1
    /call AdvPathCall
    /varset FollowFlag 1
-   /squelch /afollow unpause
+   /squelch /${FollowCommand} unpause
  } else {
    /call MBMoveTo ${LMStartY} ${LMStartX}
    /delay 15s !${Me.Moving}
