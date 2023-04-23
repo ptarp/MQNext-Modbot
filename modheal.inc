@@ -5,7 +5,7 @@ Sub LoadAHINIVals
    /declare a int local
    /declare b int local
    /call LoadINIVar AdvHeal AHCount 0 AHCount "${IniFile}" int
-   /call LoadINIVar AdvHeal AHNewFormat 0 AHNewFormat "${IniFile}" int
+   /call LoadINIVar AdvHeal AHNewFormat 1 AHNewFormat "${IniFile}" int
    /declare AHCheckTimer timer outer
    /declare AHHealList string outer |
 
@@ -299,7 +299,6 @@ Sub AHHealCheck
                   /if (${Macro.Return.NotEqual[TRUE]}) /break
                } else /if (${AHCondition[${a}].NotEqual[pr]}) {
 			      /varset PSTargetID ${AHbTargetID}
-                  /varset CommandString script ${AHCondition[${a}]} ${AHbTargetID} ${tSpellID}
                   /call MBScript ${AHCondition[${a}]} ${AHbTargetID} ${tSpellID}    	
                   /if (!${Macro.Return}) /break
 | Check the lowest PR Spell stacking to check for PR Buff
@@ -389,7 +388,7 @@ Sub AHHealCheck
                /if (${Target.ID}!=${AHbTargetID} && ${AHbTargetID}) /squelch /tar id ${If[${AHbTargetID}==99999,${Me.ID},${AHbTargetID}]}
                /if (${tGem}==40) {
                   /varset PSTargetID ${Target.ID}
-                  /call MBScript ${AHSpell[${a}]}
+				  /call MBScript ${AHSpell[${a}]}
                } else {
                   /doability ${AHSpell[${a}]}
                }
@@ -442,10 +441,10 @@ Sub AHHealCheck
                   /squelch /stick pause
                   /delay 1s !${Me.Moving}
                }
-               /if (${${FollowPlug}.Following}) {
-                  /if (!${${FollowPlug}.Paused} && ${FollowFlag}<2) {
+               /if (${AdvPath.Following}) {
+                  /if (!${AdvPath.Paused} && ${FollowFlag}<2) {
                      /varset FollowFlag 3
-                     /squelch /docommand /${FollowCommand} pause
+                     /squelch /afollow pause
                   }
                }
                /varset tTargetID ${AHbTargetID}
@@ -528,7 +527,7 @@ Sub AHHealCheck
    }
 |  /varset MBCurrentSpell
    /if (!${AHHealList.Find[${Me.Casting.Name}]}) /varset AHtTargetID 0
-   /if (${${FollowPlug}.Paused} && ${FollowFlag}==3) /squelch /docommand /${FollowCommand} unpause
+   /if (${AdvPath.Paused} && ${FollowFlag}==3) /squelch /afollow unpause
    /if (${AHPrevTarget}) /target id ${AHPrevTarget}
 /return
 

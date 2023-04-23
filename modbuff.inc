@@ -6,7 +6,7 @@ Sub LoadABINIVals
    /declare a int local
    /declare b int local
    /call LoadINIVar AdvBuff ABCount 0 ABCount "${IniFile}" int
-   /call LoadINIVar AdvBuff ABNewFormat 0 ABNewFormat "${IniFile}" int
+   /call LoadINIVar AdvBuff ABNewFormat 1 ABNewFormat "${IniFile}" int
    /declare ABCheckTimer timer outer
    /declare ABAliasList string outer
    /declare ABHasRecast bool outer FALSE
@@ -37,7 +37,6 @@ Sub LoadABINIVals
       /declare ABCondition[${ABCount}] string outer
       /declare ABSpellID[${ABCount}] int outer
       /declare ABBardSlot[${ABCount}] int outer
-      /Declare ABWontStack[${ABCount}] string outer
       /declare tSpellID int local
       /declare ABGemInUse string outer
       /declare SMPetCast bool outer FALSE
@@ -162,34 +161,7 @@ Sub LoadABINIVals
          }
       /next a
    }
-
-| ABWontStack[${a}] - new idea.  Entry in MBCommon.ini "[Nostack]" stores spellid=spellname,spellname,spellname of spells that won't stack with the spellid.
-| works the same as ABSpellIcon without having to edit every toon's .ini file.
-| Initial entry is the spellid=spellname of the buff in question. 
-   /declare x int local
-   /declare z int local
-   /declare tIniEntry string local
-   /for x 1 to ${ABCount}
-      /if (${Select[${ABGem[${x}]},${ValidSpellGems}]} && !${Spell[${ABSpell[${x}]}].TargetType.Equal[self]}) {
-         /if (${Ini["${MBCommon}",Nostack,"${Spell[${ABSpell[${x}]}].ID}","NOTFOUND"].Equal[NOTFOUND]} || !${Ini["${MBCommon}","Nostack","${Spell[${ABSpell[${x}]}].ID}"].Length}) {
-            /ini "${MBCommon}" "NoStack" "${Spell[${ABSpell[${x}]}].ID}" "${ABSpell[${x}]}"
-            /varset ABWontStack[${x}] ${Spell[${ABSpell[${x}]}].ID}
-         } else {
-            /varset tIniEntry ${Ini["${MBCommon}","Nostack","${Spell[${ABSpell[${x}]}].ID}"]}
-            /if (${tIniEntry.Find[,]}) {
-               /for z 1 to ${Math.Calc[${tIniEntry.Count[,]}+1]}
-                  /varset ABWontStack[${x}] ${ABWontStack[${x}]} ${Spell[${tIniEntry.Arg[${z},,]}].ID}
-               /next z
-            } else {
-               /varset ABWontStack[${x}] ${Spell[${tIniEntry}].ID}
-            }
-         }
-         | /echo ABWontStack[${x}] will be ${ABWontStack[${x}]}
-      }
-   /next x
-   
 /return
-
 
 
 Sub ABBuffCheck
@@ -219,25 +191,18 @@ Sub ABBuffCheck
          /varset tSpellID ${ABSpellID[${a}]}
          /varset tGem ${ABGem[${a}]}
          /if (${Me.Class.ShortName.Equal[BRD]}) {
-            /if (${Me.Gem[${tGem}].ID}!=${ABSpellID[${a}]}) {
-               /echo Memming ${ABSpell[${a}]} in gem ${tGem}
-               /stopsong
-               /delay 1s !${Me.Casting.ID}
-               /memorize "${ABSpell[${a}]}|gem${tGem}"
-               /delay 3s ${Me.Gem[${tGem}].ID}==${ABSpellID[${a}]}
-            }
             /if (!${ABTarType[${a}].Find[aura]}) {
                /if (${Spell[${tSpellID}].DurationWindow} || ${Spell[${tSpellID}].Trigger.DurationWindow} || ${Spell[${tSpellID}].Trigger[1].DurationWindow}) {
                   /if (${ABTarType[${a}].Find[cbt]} || ${Spell[${tSpellID}].SpellType.Equal[detrimental]}) {
-                     /call EditTwist cbt ${tGem} add
-                     |/varset BardCombatGems ${Macro.Return}
+                     /call EditTwist "${BardCombatGems}" ${tGem} add
+                     /varset BardCombatGems ${Macro.Return}
                      /if (${ABTarType[${a}].Find[idle]}) {
-                        /call EditTwist rest ${tGem} add
-                        |/varset BardRestGems ${Macro.Return}
+                        /call EditTwist "${BardRestGems}" ${tGem} add
+                        /varset BardRestGems ${Macro.Return}
                      }
                   } else {
-                     /call EditTwist rest ${tGem} add
-                     |/varset BardRestGems ${Macro.Return}
+                     /call EditTwist "${BardRestGems}" ${tGem} add
+                     /varset BardRestGems ${Macro.Return}
                   }
                   /continue
                }  
@@ -283,7 +248,7 @@ Sub ABBuffCheck
       /if (!${tGem}) /continue
       /if (${ABSpellIcon[${a}].Length}>1) {
 	     /if (!${Spell[${ABSpellIcon[${a}]}].ID}) /continue
-         /varset tSpellID ${Spell[${ABSpell[${a}]}].ID}
+         /varset tSpellID ${Spell[${ABSpellIcon[${a}]}].ID}
       }
 	  /if (${ABTarCnt[${a}]}>1) {
 	     /varset tSpellRange ${If[${Spell[${tSpellID}].AERange},${Spell[${tSpellID}].AERange},${Spell[${tSpellID}].Range}]}
@@ -349,16 +314,11 @@ Sub ABBuffCheck
                   /if (!${Group.Member[${tName}].Index} && !${tName.Equal[${Me.CleanName}]}) /continue
                } else /if (${ABTarType[${a}].Find[oog]}) {
                   /if (${Group.Member[${tName}].Index} || ${tName.Equal[${Me.CleanName}]}) /continue
-               } 
-               /if (${ABTarType[${a}].Find[nogroup]}) {
-                  /if (${NetBots[${Spawn[${tTargetID}].Master}].Grouped}  || ${NetBots[${tName}].Grouped}) /continue
-               } else /if (${ABTarType[${a}].Find[isgrouped]}) {
-                  /if (!${NetBots[${Spawn[${tTargetID}].Master}].Grouped}  || !${NetBots[${tName}].Grouped}) /continue
                }
                /if (${ABTarType[${a}].Find[${NetBots[${tName}].Class.ShortName}]}) {
  			      /call BuffThem ${a} ${tSpellID} ${tGem} ${NetBots[${tName}].ID} 1
 				  /if (${tABinterruptFlag}) /break
-			   } 
+			   }
                /if (${NetBots[${tName}].PetID} && ${ABTarType[${a}].Find[pet]}) {
                   /if (${Select[${NetBots[${tName}].Class.ShortName},shm,nec,mag,bst,enc,shd]}) {
                      /call BuffThem ${a} ${tSpellID} ${tGem} ${NetBots[${tName}].PetID} 1
@@ -500,18 +460,12 @@ Sub BuffThem(int a, int tSpellID, int tGem, int tTargetID, int tBot)
                /next c 
 | /echo ABSpellIconX${a} ${ABSpellIconX[${a}]}
             }
-            /if (${ABWontStack[${a}].Length}>1 && ${Spell[${tSpellID}].TargetType.NotEqual[Self]}) {
-               /if (${tBuffs.Find[${ABWontStack[${a}]}]} || ${tBuffs.Find[${tSpellID}]}) /goto :tBReturn
-               /for c 1 to ${Math.Calc[${ABWontStack[${a}].Count[ ]}+1]}
-                  /if (${tBuffs.Find[${ABWontStack[${a}].Arg[${c}]}]}) /goto :tBTReturn
-               /next c
-            }
             /if (${Spawn[${tTargetID}].Type.Equal[pc]}) {
                /if (!${NetBots[${tName}].FreeBuffSlots}) /goto :tBTReturn
             }
             /if (${tBuffs.Length} && ${ABTarType[${a}].Find[${Spawn[${tTargetID}].Class.ShortName}]} || (${ABTarType[${a}].Find[self]} && ${tTargetID}==${Me.ID}) || (${ABTarType[${a}].Find[pet]} && ${Spawn[${tTargetID}].Master.ID}) || ${ABTarType[${a}].Find[tank]}) {
                /if (${Spawn[${tTargetID}].Type.Equal[pc]}) {
-                  /if (!${NetBots[${tName}].Stacks[${tSpellID}]} || ${NetBots[${tName}].Buff.Find[${tSpellID}]}) {
+                  /if (!${NetBots[${tName}].Stacks[${tSpellID}]}) {
 |                    /echo ${If[${TimeStampOnEcho},[${Time}] ,]}${ABSpell[${a}]} - Won't stack on ${tName}
                      /goto :tBTReturn
                   }
@@ -634,7 +588,7 @@ Sub BuffThem(int a, int tSpellID, int tGem, int tTargetID, int tBot)
             /goto :tBTReturn
          }
       } else /if (${Me.Class.ShortName.Equal[BRD]}) {
-         /if (${tTargetID} && ${Target.ID}!=${tTargetID} && ${Spell[${tSpellID}].TargetType.NotEqual[self]} && ${Spell[${tSpellID}].TargetType.Equal[Single]}) {
+         /if (${tTargetID} && ${Target.ID}!=${tTargetID} && ${Spell[${tSpellID}].TargetType.NotEqual[self]}) {
             /if (${Melee.Combat}) /attack off
             /squelch /tar id ${tTargetID}
             /delay 1s ${Target.ID}==${tTargetID}

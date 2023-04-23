@@ -1,5 +1,4 @@
 
-
 #Event SpellResist "#*#target resisted the #1# spell#*#"
 #Event SpellResist "#*#resisted your #1#!#*#"
 #Event SpellResist "#*#avoided your #1#!#*#"
@@ -17,7 +16,7 @@
 
 Sub LoadADINIVals
    /call LoadINIVar AdvDebuff ADCount 0 ADCount "${IniFile}" int
-   /call LoadINIVar AdvDebuff ADNewFormat 0 ADNewFormat "${IniFile}" int
+   /call LoadINIVar AdvDebuff ADNewFormat 1 ADNewFormat "${IniFile}" int
    /call LoadINIVar AdvDebuff ADMobMax 20 ADMobMax "${IniFile}" int
    /call LoadINIVar AdvDebuff ADCheckTime 2 ADCheckTime "${IniFile}" int
    /call LoadINIVar AdvDebuff ADAggroOnly 0 ADAggroOnly "${IniFile}" int
@@ -170,16 +169,12 @@ Sub LoadADINIVals
             /if (${Me.CombatAbility[${Spell[${ADSpell[${a}]}].RankName}]}) {
                /varset ADSpell[${a}] ${Spell[${ADSpell[${a}]}].RankName}
             } else {
-               /if (${ADTarCnt[${a}]}!=0) {
-                  /bc Msg: You don't have the ${ADSpell[${a}]} Disc.  Please check ADSpell${a} in your .ini
-                  /varset ADTarCnt[${a}] 0
-               }
+               /bc Msg: You don't have the ${ADSpell[${a}]} Disc.  Please check ADSpell${a} in your .ini
+               /varset ADTarCnt[${a}] 0
             }
          } else {
-            /if (${ADTarCnt[${a}]} > 0 ) {
-               /bc Msg: Debuff #${a} is invalid. Check your .ini settings.
-               /varset ADTarCnt[${a}] 0	
-            }		
+            /bc Msg: Debuff #${a} is invalid. Check your .ini settings.
+            /varset ADTarCnt[${a}] 0			
          }
 		 /if (${Spell[${ADSpell[${a}]}].ID}) {
             /call LoadINIVar "${Spell[${ADSpell[${a}]}].Name}" "MaxLevel" "150" "MaxLevel${Spell[${ADSpell[${a}]}].ID}" "${MBCommon}" string
@@ -288,7 +283,7 @@ Sub ADSpawnCheck(string scParm)
    /varset ADMobFound FALSE
    /if (${scParm.NotEqual[find]}) /varset ADMobCount 0
 
-   /if (${Select[${Zone.ShortName},GuildHall,GuildLobby,PoKnowledge,Nexus,Bazaar,AbysmalSea,potranquility,thundercrest]}) /return FALSE
+   /if (${Select[${Zone.ShortName},GuildHall,GuildLobby,PoKnowledge,Nexus,Bazaar,AbysmalSea,potranquility]}) /return FALSE
    /if (${ZoneName.NotEqual[${Zone.Name}]}) /call ProcessExcludeList
    /declare TotalNPCs int local ${SpawnCount[any radius ${Radius} zradius ${ZRadius} noalert ${AlertList}]}
    /while (1) {

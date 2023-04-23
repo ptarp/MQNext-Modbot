@@ -3,17 +3,17 @@
 #Event AECEventC "#*#|${AECustomE3}|#*#"
 
 Sub Event_AECEventA
-   /if (${AECustomE1.Length} && ${AECustomE1.NotEqual[NULL]}) /call MBScript AECustomEvent1
+   /call MBScript AECustomEvent1
 /return
 
 
 Sub Event_AECEventB
-   /if (${AECustomE2.Length} && ${AECustomE2.NotEqual[NULL]}) /call MBScript AECustomEvent2
+   /call MBScript AECustomEvent2
 /return
 
 
 Sub Event_AECEventC
-   /if (${AECustomE2.Length} && ${AECustomE2.NotEqual[NULL]}) /call MBScript AECustomEvent3
+   /call MBScript AECustomEvent3
 /return
 
 
@@ -28,7 +28,7 @@ Sub LoadAEINIVals
       /next a
    }
    /call LoadINIVar AdvEvent AECount 0 AECount "${IniFile}" int
-   /call LoadINIVar AdvEvent AENewFormat 0 AENewFormat "${IniFile}" int
+   /call LoadINIVar AdvEvent AENewFormat 1 AENewFormat "${IniFile}" int
    /declare AECheckTimer timer outer
    /if (${AECount}) {
       /call LoadINIVar AdvEvent AECheckTime 8 AECheckTime "${IniFile}" int
@@ -139,7 +139,7 @@ Sub LoadAEINIVals
 
 
 Sub AEEventCheck
-   /if (${MBPause} || ${AECheckTimer} || ${${FollowPlug}.Following} && !${${FollowPlug}.Idle}) /return
+   /if (${MBPause} || ${AECheckTimer} || ${AdvPath.Following} && !${AdvPath.Idle}) /return
    /varset AECheckTimer ${AECheckTime}s
    /declare a int local
    /declare b int local
