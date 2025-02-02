@@ -1,10 +1,8 @@
 
-
-#event ImHit "#*# YOU, but #*#"
+#Event ImHit "#*# YOU, but #*#"
 #Event ImHit "#*#YOU for#*#points of damage."
-
-#Event CantHit "#*#can't hit them from here#*#"
-#Event CantHit "#*#You cannot see your target#*#"
+#Event CantHit "You can't hit them from here#*#"
+#Event CantHit "You cannot see your target#*#"
 
 Sub LoadAPINIVals
    /declare APAggro int outer 0
@@ -34,7 +32,10 @@ Sub AdvPull(P0)
       /varset APCheckTimer ${APCheckTime}s
       /if (${CurrentMobCount} && !${ACAssistPct}>=100) /return
    }
-   /if (${Spawn[${APTargetID}].PctHPs}<=0 || ${Spawn[${APTargetID}].Type.Equal[Corpse]} || !${Spawn[${APTargetID}].ID} || ${Spawn[${APTargetID}].Distance}>400 && !${CurrentMobCount}) /multiline ; /varset APTargetID 0;/varset APAggro 0
+   /if (${Spawn[${APTargetID}].PctHPs}<=0 || ${Spawn[${APTargetID}].Type.Equal[Corpse]} || !${Spawn[${APTargetID}].ID} || ${Spawn[${APTargetID}].Distance}>400 && !${CurrentMobCount}) {
+      /varset APTargetID 0
+	  /varset APAggro 0
+   }
    /declare sReturn string local FALSE
    /declare sVarC string local
    /declare sVarL string local
@@ -65,7 +66,7 @@ Sub AdvPull(P0)
       }
    }
    /if (${CurrentMobCount} && (!${APAggro} || !${APTargetID})) /goto :tTop
-   /if (${APAggro} && ${APTargetID} || ${Melee.Combat} || ${Spawn[npc ${APTargetID}].ID} || ${NetBots[${TankName}].Attacking}) /goto :tEnd
+   /if (${APAggro} && ${APTargetID} || ${Melee.Combat} || ${Spawn[npc ${APTargetID}].ID} || ${NetBots[${TankName.Arg[1,${PipeChar}]}].Attacking}) /goto :tEnd
 :tTop
    /for a 0 to ${Group.Members}
       /if (!${NetBots[${Group.Member[${a}].Name}].ID}) /varset sNBClnt ${sNBClnt} ${Group.Member[${a}].Name}
@@ -111,11 +112,11 @@ Sub AdvPull(P0)
       /goto :tEnd
    }
    /if (${APPath.Length} && ${Melee.Enable} && ${meleemvi[melee]}<${Spawn[${tTargetID}].Distance3D}) /squelch /melee plugin=0
-   /squelch /face nolook id ${tTargetID}
+   /squelch /face nolook ${If[${MacroQuest.BuildName.Equal[emu]},fast ,]}id ${tTargetID}
    /delay 5
    /if (${Target.ID}!=${tTargetID}) /squelch /tar id ${tTargetID}
    /delay 1s ${Target.ID}==${tTargetID}
-| Remove mob from ADMobList if it's agro on someone else.  (Don't pull other's mobs.)  Then re-check  only works with LAHoTT.
+| Remove mob from ADMobList if it's agro on someone else (Don't pull other's mobs.) Then re-check. Only works with LAHoTT.
    /if (${Me.LAHoTT} && ${Target.ID}) {
       /if (${SpawnCount[pc loc ${Spawn[${tTargetID}].X} ${Spawn[${tTargetID}].Y} radius 50]}>${SpawnCount[pc group loc ${Spawn[${tTargetID}].X} ${Spawn[${tTargetID}].Y} radius 50]}) /delay 3s ${Me.TargetOfTarget.ID}
       /if (${Me.TargetOfTarget.ID} && !${Spawn[group ${Me.TargetOfTarget}].ID} && !${NetBots[${Me.TargetOfTarget}].ID} && !${Group.Member[${Me.TargetOfTarget.ID}].Master} && ${Spawn[${Me.TargetOfTarget}].Type.NotEqual[corpse]} && ${Spawn[${Me.TargetOfTarget}].Distance}<300) {
@@ -133,7 +134,7 @@ Sub AdvPull(P0)
       /varset tDistance ${Target.Distance}
       /if (${APScript.Length}>3) {
          /varcalc Tries ${Tries}+1
-       /call MBScript ${APScript}
+    	 /call MBScript ${APScript}
 |     } else /if (!${APScript.Length} && !${APPath.Length} && ${APSpell.Length}) {
 |        /if (${Me.Book[${Me.Book[${APSpell.Arg[1,|]}]}].ID}) /call MQ2Cast "${APSpell.Arg[1,|]}" ${APSpell.Arg[2,|]} ${Spell[${APSpell.Arg[1,|]}].MyCastTime.Float} -targetID|${tTargetID}
       }
@@ -199,7 +200,9 @@ Sub AdvPull(P0)
    /if (!${Melee.Enable} && (!${PathLoc} || ${PathLoc}==1)) /squelch /melee plugin=1
    /if (!${sReturn} && ${APPath.Length}>2 && !${CurrentMobCount} && ${PathLoc}==1) {
       /varset APCheckTimer ${APCheckTime}s
-      /if (${ACStartHeading} && ${PathLoc}==1) /squelch /face Heading ${ACStartHeading}
+      /if (${UseHeadings} && ${ACStartHeading} && ${PathLoc}==1) {
+         /squelch /face nolook ${If[${MacroQuest.BuildName.Equal[emu]},fast ,]}heading ${ACStartHeading}
+      }
    }
    /varset APPullDelay 30s
 /return ${sReturn}
@@ -225,7 +228,7 @@ Sub Event_ImHit
          /delay 1s ${Target.ID}
          /if (${Target.ID} && ${Target.ID}!=${Me.ID}) /varset APTargetID ${Target.ID}
       }
-   } else /if (${Defined[DefenseC]}) {
+   } else /if (${DefenseC}) {
       /call MBScript Defense
    }  
    /if (${Me.CombatState.Equal[combat]}) /varset SitCheckTimer 5s
@@ -233,9 +236,11 @@ Sub Event_ImHit
 /return
 
 Sub Event_CantHit
-   /if (${DoPull} && !${APTargetID} && !${APAggro}) {
-      /varset FailCheck TRUE
-      /echo ${If[${TimeStampOnEcho},[${Time}] ,]}Can't hit, moving on.
+   /if (${DoPull}) {
+      /if (!${APTargetID} && !${APAggro}) {
+         /varset FailCheck TRUE
+         /echo ${If[${TimeStampOnEcho},[${Time}] ,]}Can't hit, moving on.
+      }
    }
    /doevents flush CantHit
 /return

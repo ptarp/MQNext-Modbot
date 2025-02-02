@@ -2,10 +2,14 @@
 Sub LoadAQINIVals
    /declare a int local
    /call LoadINIVar AdvCure AQCount 0 AQCount "${IniFile}" int
-   /call LoadINIVar AdvCure AQNewFormat 0 AQNewFormat "${IniFile}" int
+   /call LoadINIVar AdvCure AQNewFormat ${DefaultNewFormat} AQNewFormat "${IniFile}" int
+   /call LoadINIVar AdvCure AQCheckTime 8 AQCheckTime "${IniFile}" int
    /declare AQCheckTimer timer outer
+| If setting up new ini, create a dummy entry to show a template
+   /if (${MBNewIni}) {
+      /call LoadAQIniEntry 0
+   }
    /if (${AQCount}) {
-      /call LoadINIVar AdvCure AQCheckTime 8 AQCheckTime "${IniFile}" int
       /declare AQGem[${AQCount}] string outer
       /declare AQSpell[${AQCount}] string outer
       /declare AQSpellCureType[${AQCount}] string outer
@@ -16,80 +20,102 @@ Sub LoadAQINIVals
       /declare AQTarType[${AQCount}] string outer
       /declare AQSpellAlias[${AQCount}] string outer
       /declare AQAnnounce[${AQCount}] string outer
-	  /declare AQCondition[${AQCount}] string outer
+      /declare AQCondition[${AQCount}] string outer
       /declare AQBardSlot[${AQCount}] int outer
-	  /declare AQSpellRange[${AQCount}] int outer
-	  /declare AQSplashSpell[${AQCount}] bool outer
+      /declare AQSpellRange[${AQCount}] int outer
+      /declare AQSplashSpell[${AQCount}] bool outer
       /declare tSpellID int local
       /for a 1 to ${AQCount}
-         /if (${AQNewFormat}) {
-            /call LoadINIVar AQ${a} Gem " " AQGem[${a}] ${IniFile}
-            /call LoadINIVar AQ${a} Spell " " AQSpell[${a}] ${IniFile}
-            /call LoadINIVar AQ${a} SpellFoci " " AQSpellFoci[${a}] ${IniFile}
-            /call LoadINIVar AQ${a} SpellCureType "Cursed Diseased Poisoned Corrupted EnduDrain LifeDrain ManaDrain Blind CastingLevel Charmed Feared Healing Mesmerized Resistance Rooted Silenced Slowed Snared SpellCost SpellSlowed SpellDamage Trigger All" AQSpellCureType[${a}] ${IniFile}
-            /call LoadINIVar AQ${a} SpellMinMana 0 AQSpellMinMana[${a}] ${IniFile}
-            /call LoadINIVar AQ${a} SpellRecast " " AQSpellRecast[${a}] ${IniFile}
-            /call LoadINIVar AQ${a} TarCnt " " AQTarCnt[${a}] ${IniFile}
-            /call LoadINIVar AQ${a} TarType "grp cbt idle " AQTarType[${a}] ${IniFile}
-            /call LoadINIVar AQ${a} SpellAlias " " AQSpellAlias[${a}] ${IniFile}
-            /call LoadINIVar AQ${a} Announce " " AQAnnounce[${a}] ${IniFile}
-			/call LoadINIVar AQ${a} PreCondition "TRUE" AQCondition[${a}] ${IniFile}
-         } else {
-            /call LoadINIVar AdvCure AQGem${a} " " AQGem[${a}] ${IniFile}
-            /call LoadINIVar AdvCure AQSpell${a} " " AQSpell[${a}] ${IniFile}
-            /call LoadINIVar AdvCure AQSpellFoci${a} " " AQSpellFoci[${a}] ${IniFile}
-            /call LoadINIVar AdvCure AQSpellCureType${a} "Cursed Diseased Poisoned Corrupted EnduDrain LifeDrain ManaDrain Blind CastingLevel Charmed Feared Healing Mesmerized Resistance Rooted Silenced Slowed Snared SpellCost SpellSlowed SpellDamage Trigger All" AQSpellCureType[${a}] ${IniFile}
-            /call LoadINIVar AdvCure AQSpellMinMana${a} 0 AQSpellMinMana[${a}] ${IniFile}
-            /call LoadINIVar AdvCure AQSpellRecast${a} " " AQSpellRecast[${a}] ${IniFile}
-            /call LoadINIVar AdvCure AQTarCnt${a} " " AQTarCnt[${a}] ${IniFile}
-            /call LoadINIVar AdvCure AQTarType${a} "grp cbt idle " AQTarType[${a}] ${IniFile}
-            /call LoadINIVar AdvCure AQSpellAlias${a} " " AQSpellAlias[${a}] ${IniFile}
-            /call LoadINIVar AdvCure AQAnnounce${a} " " AQAnnounce[${a}] ${IniFile}
-			/call LoadINIVar AdvCure AQPreCondition${a} "TRUE" AQCondition[${a}] ${IniFile}
-         }
-		 /varset tSpellID 0
-         /if (${AQGem[${a}].NotEqual[script]} && ${AQSpell[${a}].Length}) {
-            /if (${Select[${AQGem[${a}]},${ValidSpellGems}]}) {
-               /if (${Me.Book[${Me.Book[${AQSpell[${a}]}]}].ID}) {
-                  /varset AQSpell[${a}] ${Me.Book[${Me.Book[${AQSpell[${a}]}]}].Name}
-				  /varset tSpellID ${Me.Book[${Me.Book[${AQSpell[${a}]}]}].ID}
-               } else /if (${Me.Book[${Me.Book[${AQSpell[${a}]} ]}].ID}) {
-                  /varset AQSpell[${a}] ${Me.Book[${Me.Book[${AQSpell[${a}]} ]}].Name}
-				  /varset tSpellID ${Me.Book[${Me.Book[${AQSpell[${a}]}]}].ID}
-               } else /if (${Me.Book[${Spell[${AQSpell[${a}]}].RankName}]}) {
-                  /varset AQSpell[${a}] ${Spell[${AQSpell[${a}]}].RankName}
-				  /varset tSpellID ${Me.Book[${Me.Book[${AQSpell[${a}]}]}].ID}
-               } else {
+         /call LoadAQIniEntry ${a}
+         /varset tSpellID 0
+         /if (${Select[${AQGem[${a}]},${ValidSpellGems}]}) {
+|Spell
+            /if (${Me.Book[${Me.Book[${AQSpell[${a}]}]}].ID}) {
+               /varset AQSpell[${a}] ${Me.Book[${Me.Book[${AQSpell[${a}]}]}].Name}
+               /varset tSpellID ${Me.Book[${Me.Book[${AQSpell[${a}]}]}].ID}
+            } else /if (${Me.Book[${Me.Book[${AQSpell[${a}]} ]}].ID}) {
+               /varset AQSpell[${a}] ${Me.Book[${Me.Book[${AQSpell[${a}]} ]}].Name}
+               /varset tSpellID ${Me.Book[${Me.Book[${AQSpell[${a}]}]}].ID}
+            } else /if (${Me.Book[${Spell[${AQSpell[${a}]}].RankName}]}) {
+               /varset AQSpell[${a}] ${Spell[${AQSpell[${a}]}].RankName}
+               /varset tSpellID ${Me.Book[${Me.Book[${AQSpell[${a}]}]}].ID}
+            } else {
+               /if (${AQTarCnt[${a}]} || ${InfoMsgLevel}) {
                   /bc Msg: Spell ${AQSpell[${a}]} Not found in your book.  Check your .ini settings.
-                  /varset AQTarCnt[${a}] 0
                }
-            } else /if (${AQGem[${a}].Find[item]}) {
-               /if (!${FindItem[=${AQSpell[${a}]}].ID}) {
+               /varset AQTarCnt[${a}] 0
+            }
+         } else /if (${AQGem[${a}].Equal[item]}) {
+|Item
+            /if (!${FindItem[=${AQSpell[${a}]}].ID}) {
+               /if (${AQTarCnt[${a}]} || ${InfoMsgLevel}) {
                   /bc Msg: Cure Item not found: ${AQSpell[${a}]}. Check your .ini settings (or get more of the item).
-               } else {
-				  /varset tSpellID ${FindItem[=${AQSpell[${a}]}].Spell.ID}
-			   }
-            } else /if (${AQGem[${a}].Equal[alt]}) {
-               /if (!${Me.AltAbility[${AQSpell[${a}]}].ID} && !${Me.Shrouded}) {
-                  /bc Msg: You don't have the AltAbility ${AQSpell[${a}]}.  Check your .ini settings
-                  /varset AQTarCnt[${a}] 0
-               } else {
-                  /varset tSpellID ${Me.AltAbility[${AQSpell[${a}]}].Spell.ID} 
                }
-            } 
+            } else {
+               /varset tSpellID ${FindItem[=${AQSpell[${a}]}].Spell.ID}
+            }
+         } else /if (${AQGem[${a}].Equal[alt]}) {
+|Alt
+            /if (!${Me.AltAbility[${AQSpell[${a}]}].ID} && !${Me.Shrouded}) {
+               /if (${AQTarCnt[${a}]} || ${InfoMsgLevel}) {
+                  /bc Msg: You don't have the AltAbility ${AQSpell[${a}]}.  Check your .ini settings
+               }
+               /varset AQTarCnt[${a}] 0
+            } else {
+               /varset tSpellID ${Me.AltAbility[${AQSpell[${a}]}].Spell.ID} 
+            }
+         } else /if (${AQGem[${a}].NotEqual[script]}) {
+            /if (${AQTarCnt[${a}]} || ${InfoMsgLevel}) {
+               /bc Msg: Invalid Value for AQGem #${a}. Please check your .ini settings.
+            }
+            /varset AQTarCnt[${a}] 0
          }
          /if (${tSpellID}) {
-		    /varset AQSpellRange[${a}] ${If[${Spell[${tSpellID}].AERange},${Spell[${tSpellID}].AERange},${Spell[${tSpellID}].Range}]}
+            /varset AQSpellRange[${a}] ${If[${Spell[${tSpellID}].AERange},${Spell[${tSpellID}].AERange},${Spell[${tSpellID}].Range}]}
             /if (${Spell[${tSpellID}].TargetType.Equal[free target]}) {
-			   /varset AQSplashSpell[${a}] TRUE
-			} else {
+               /varset AQSplashSpell[${a}] TRUE
+            } else {
                /varset AQSplashSpell[${a}] FALSE
             }
          } else {
             /varset AQSpellRange[${a}] 0
-		    /varset AQSplashSpell[${a}] FALSE
-		 }
+            /varset AQSplashSpell[${a}] FALSE
+         }
+         /if (${AQTarType[${a}].Find[all]}) {
+            /varset AQTarType[${a}] ${AQTarType[${a}].Replace[all,${pcClasses}]}
+         } else /if (${AQTarType[${a}].Find[any]}) {
+            /varset AQTarType[${a}] ${AQTarType[${a}].Replace[any,${pcClasses}]}
+         }
       /next a
+   }
+/return
+
+
+Sub LoadAQIniEntry(int a)
+   /if (${AQNewFormat}) {
+      /call LoadINIVar AQ${a} Gem " " ${If[${a},AQGem[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AQ${a} Spell " " ${If[${a},AQSpell[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AQ${a} SpellFoci " " ${If[${a},AQSpellFoci[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AQ${a} SpellCureType " " ${If[${a},AQSpellCureType[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AQ${a} SpellMinMana 0 ${If[${a},AQSpellMinMana[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AQ${a} SpellRecast " " ${If[${a},AQSpellRecast[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AQ${a} TarCnt " " ${If[${a},AQTarCnt[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AQ${a} TarType " " ${If[${a},AQTarType[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AQ${a} SpellAlias " " ${If[${a},AQSpellAlias[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AQ${a} Announce " " ${If[${a},AQAnnounce[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AQ${a} PreCondition "TRUE" ${If[${a},AQCondition[${a}],NOVAR]} ${IniFile}
+   } else {
+      /call LoadINIVar AdvCure AQGem${a} " " ${If[${a},AQGem[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AdvCure AQSpell${a} " " ${If[${a},AQSpell[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AdvCure AQSpellFoci${a} " " ${If[${a},AQSpellFoci[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AdvCure AQSpellCureType${a} " " ${If[${a},AQSpellCureType[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AdvCure AQSpellMinMana${a} 0 ${If[${a},AQSpellMinMana[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AdvCure AQSpellRecast${a} " " ${If[${a},AQSpellRecast[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AdvCure AQTarCnt${a} " " ${If[${a},AQTarCnt[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AdvCure AQTarType${a} " " ${If[${a},AQTarType[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AdvCure AQSpellAlias${a} " " ${If[${a},AQSpellAlias[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AdvCure AQAnnounce${a} " " ${If[${a},AQAnnounce[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AdvCure AQPreCondition${a} "TRUE" ${If[${a},AQCondition[${a}],NOVAR]} ${IniFile}
    }
 /return
 
@@ -133,112 +159,112 @@ Sub AQCureCheck
          /if (!${FindItem[=${AQSpell[${a}]}].ID} || ${FindItem[=${AQSpell[${a}]}].Timer}) /continue
       } else /if (${AQGem[${a}].Equal[alt]}) {
          /if (!${Me.AltAbility[${AQSpell[${a}]}].ID}) /continue
-         /if (!${Me.AltAbilityReady[${AQSpell[${a}]}]} || ${Me.CurrentMana}<${Me.AltAbility[${AQSpell[${a}]}].Spell.Mana}) /continue	  
+         /if (!${Me.AltAbilityReady[${AQSpell[${a}]}]} || ${Me.CurrentMana}<${Me.AltAbility[${AQSpell[${a}]}].Spell.Mana}) /continue      
       }
-	  
-      /varset tTargetID 0	
-	  
+      
+      /varset tTargetID 0    
+      
 | Check Self only
       /if (${AQTarType[${a}].Find[self]}) {
          /if (${NetBots[${Me.CleanName}].Detrimentals}>${NetBots[${Me.CleanName}].NoCure}) {
             /if (${AQSpellCureType[${a}].Find[all]}) {
-		       /varset tTargetID ${Me.ID}
-			   /goto :cSpellFound
+               /varset tTargetID ${Me.ID}
+               /goto :cSpellFound
             }
             /for c 1 to ${Math.Calc[${AQSpellCureType[${a}].Count[ ]}+1]}
                /if (${NetBots[${Me.CleanName}].${AQSpellCureType[${a}].Arg[${c}]}}) {
                   /varset tTargetID ${Me.ID}
                   /break
-			   }
+               }
             /next c
-			/if (${tTargetID}) /goto :cSpellFound
+            /if (${tTargetID}) /goto :cSpellFound
          }
          /continue
       }
    
-	  /varset tSpellRange ${AQSpellRange[${a}]}
-	  /varset tSplashSpell ${AQSplashSpell[${a}]}
+      /varset tSpellRange ${AQSpellRange[${a}]}
+      /varset tSplashSpell ${AQSplashSpell[${a}]}
 
 | Check Tank only
       /if (${AQTarType[${a}].Find[tank]}) {
-         /if (${NetBots[${TankName}].Detrimentals}>${NetBots[${TankName}].NoCure}) {
-            /if (!${AQTarType[${a}].Find[grp]} || ${Group.Member[${TankName}].Index}) {
-               /varset tID ${Spawn[=${TankName}].ID}	  
+         /if (${NetBots[${TankName.Arg[1,${PipeChar}]}].Detrimentals}>${NetBots[${TankName.Arg[1,${PipeChar}]}].NoCure}) {
+            /if (!${AQTarType[${a}].Find[grp]} || ${Group.Member[${TankName.Arg[1,${PipeChar}]}].Index}) {
+               /varset tID ${Spawn[=${TankName.Arg[1,${PipeChar}]}].ID}      
                /if (!${tID}) /continue
-			   /if (${tSpellRange}) {
-			      /if (${Spawn[${tID}].Distance}>${tSpellRange}) /continue
-			   }
-			   /if (${tSplashSpell}) {
+               /if (${tSpellRange}) {
+                  /if (${Spawn[${tID}].Distance}>${tSpellRange}) /continue
+               }
+               /if (${tSplashSpell}) {
                   /if (!${Spawn[${tID}].CanSplashLand}) /continue
                }
                /if (${AQSpellCureType[${a}].Find[all]}) {
                   /varset tTargetID ${tID}
                   /goto :cSpellFound
-		       }
+               }
                /for c 1 to ${Math.Calc[${AQSpellCureType[${a}].Count[ ]}+1]}
-                  /if (${NetBots[${TankName}].${AQSpellCureType[${a}].Arg[${c}]}}) {
+                  /if (${NetBots[${TankName.Arg[1,${PipeChar}]}].${AQSpellCureType[${a}].Arg[${c}]}}) {
                      /varset tTargetID ${tID}
                      /break
                   }
                /next c
-			   /if (${tTargetID}) /goto :cSpellFound
+               /if (${tTargetID}) /goto :cSpellFound
             }
          }
          /continue
       }
-	  
+      
 | Check Myself
       /if (${AQTarType[${a}].Find[${Me.Class.ShortName}]} && ${NetBots[${Me.CleanName}].Detrimentals}>${NetBots[${Me.CleanName}].NoCure}) {
          /if (${AQSpellCureType[${a}].Find[all]}) {
-		    /varset tTargetID ${Me.ID}
+            /varset tTargetID ${Me.ID}
             /goto :cSpellFound
          }
          /for c 1 to ${Math.Calc[${AQSpellCureType[${a}].Count[ ]}+1]}
             /if (${NetBots[${Me.CleanName}].${AQSpellCureType[${a}].Arg[${c}]}}) {
-		       /varset tTargetID ${Me.ID}
+               /varset tTargetID ${Me.ID}
                /break
             }
          /next c
-		 /if (${tTargetID}) /goto :cSpellFound
+         /if (${tTargetID}) /goto :cSpellFound
       }
 
 | Check group members (other than myself)
       /if (${Group.Members}>0) {
          /for i 1 to ${Group.Members}
-	        /if (${NetBots[${Group.Member[${i}].Name}].Detrimentals}>${NetBots[${Group.Member[${i}].Name}].NoCure}) {
+            /if (${NetBots[${Group.Member[${i}].Name}].Detrimentals}>${NetBots[${Group.Member[${i}].Name}].NoCure}) {
                /if (${Group.Member[${i}].Present} && ${AQTarType[${a}].Find[${Group.Member[${i}].Class.ShortName}]}) {
                   /if (${tSpellRange}) {
-			         /if (${Group.Member[${i}].Distance}>${tSpellRange}) /continue
-			      }
-			      /if (${tSplashSpell}) {
+                     /if (${Group.Member[${i}].Distance}>${tSpellRange}) /continue
+                  }
+                  /if (${tSplashSpell}) {
                      /if (!${Group.Member[${i}].CanSplashLand}) /continue
                   }
                   /if (${AQSpellCureType[${a}].Find[all]}) {
                      /varset tTargetID ${Group.Member[${i}].ID}
                      /break
-				  }
+                  }
                   /for c 1 to ${Math.Calc[${AQSpellCureType[${a}].Count[ ]}+1]}
                      /if (${NetBots[${Group.Member[${i}].Name}].${AQSpellCureType[${a}].Arg[${c}]}}) {
                         /varset tTargetID ${Group.Member[${i}].ID}
                         /break
                      }
                   /next c
-		          /if (${tTargetID}) /break
+                  /if (${tTargetID}) /break
                }
             }
          /next i
          /if (${tTargetID}) /goto :cSpellFound
-      }  		 
-		 
+      }           
+         
 | Check NetBots members only out of group since group check already done.
       /if (!${AQTarType[${a}].Find[grp]}) {
          /for i 1 to ${NetBots.Counts}
-		 	/varset tName ${NetBots.Client.Arg[${i}]}
-	        /if (${NetBots[${tName}].Detrimentals} > ${NetBots[${tName}].NoCure}) {
-			   /if (${NetBots[${tName}].InZone} && !${NetBots[${tName}].InGroup} && ${AQTarType[${a}].Find[${NetBots[${tName}].Class.ShortName}]}) {
+            /varset tName ${NetBots.Client.Arg[${i}]}
+            /if (${NetBots[${tName}].Detrimentals} > ${NetBots[${tName}].NoCure}) {
+               /if (${NetBots[${tName}].InZone} && !${NetBots[${tName}].InGroup} && ${AQTarType[${a}].Find[${NetBots[${tName}].Class.ShortName}]}) {
                   /if (${tSpellRange}) {
-			         /if (${Spawn[${NetBots[${tName}].ID}].Distance}>${tSpellRange}) /continue
-			      }
+                     /if (${Spawn[${NetBots[${tName}].ID}].Distance}>${tSpellRange}) /continue
+                  }
                   /if (${tSplashSpell}) {
                      /if (!${Spawn[${NetBots[${tName}].ID}].CanSplashLand}) /continue
                   }
@@ -249,30 +275,30 @@ Sub AQCureCheck
                   /for c 1 to ${Math.Calc[${AQSpellCureType[${a}].Count[ ]}+1]}
                      /if (${NetBots[${tName}].${AQSpellCureType[${a}].Arg[${c}]}}) {
                         /varset tTargetID ${NetBots[${tName}].ID}
-                        /break				  
+                        /break                  
                      }
                   /next c
-		          /if (${tTargetID}) /break
+                  /if (${tTargetID}) /break
                }
             }
          /next i
          /if (${tTargetID}) /goto :cSpellFound
-      }	  		 
-		 
+      }               
+         
       /continue
-	  
+      
 :cSpellFound
       /if (${AQCondition[${a}].Length}>4) {
-	     /varset PSTargetID ${tTargetID}
+         /varset PSTargetID ${tTargetID}
          /call IniCommand "${AQCondition[${a}]}"
          /if (${Macro.Return.NotEqual[TRUE]}) /continue
       }
       /if (${Corpse.Open}) {
-	     /nomodkey /keypress esc
-	  }
+         /nomodkey /keypress esc
+      }
       /if (${Me.Ducking}) {
-	     /nomodkey /keypress duck
-	  }
+         /nomodkey /keypress duck
+      }
 |/echo ${If[${TimeStampOnEcho},[${Time}] ,]}Cure Needed 2 - ${Spawn[${tTargetID}].Name} - ${AQSpell[${a}]} 
       /if (${Select[${AQGem[${a}]},${ValidSpellGems}]}) {
 |Spell
@@ -282,11 +308,11 @@ Sub AQCureCheck
          /varcalc tCT ${Spell[${tSpellID}].MyCastTime}/100+40
          /if (${Me.Gem[${tGem}].ID}!=${tSpellID}) {
             /call MemGem ${tGem} "${AQSpell[${a}]}"
-			/if (${Macro.Return.NotEqual[TRUE]}) {
+            /if (${Macro.Return.NotEqual[TRUE]}) {
                /continue
             }
          }
-		 /if (${Me.Class.ShortName.NotEqual[BRD]} && ${Me.GemTimer[${tGem}]}) /continue
+         /if (${Me.Class.ShortName.NotEqual[BRD]} && ${Me.GemTimer[${tGem}]}) /continue
       } else /if (${AQGem[${a}].Find[item]}) {
 |Item
          /varset tSpellID ${FindItem[=${AQSpell[${a}]}].Spell.ID}
@@ -294,7 +320,7 @@ Sub AQCureCheck
          /varcalc tCT ${FindItem[=${AQSpell[${a}]}].CastTime}/100+40
          /if (${Me.Class.ShortName.Equal[BRD]}) {
             /if (!${AQBardSlot[${a}]}) {
-               /call GetBardSlot "${AQSpell[${a}]}" AQ|${a}
+               /call GetBardSlot "${AQSpell[${a}]}" AQ${PipeChar}${a}
                /if (!${AQBardSlot[${a}]}) {
                   /bc Msg: No BardSlot assigned. Turning off Item casting for: ${AQSpell[${a}]}
                   /varset AQTarCnt[${a}] 0
@@ -307,6 +333,16 @@ Sub AQCureCheck
          /varset tSpellID ${Me.AltAbility[${AQSpell[${a}]}].Spell.ID} 
          /varset tGem 30 
          /varcalc tCT ${Me.AltAbility[${AQSpell[${a}]}].Spell.CastTime}/100+40
+         /if (${Me.Class.ShortName.Equal[BRD]}) {
+            /if (!${AQBardSlot[${a}]} && ${Spell[${tSpellID}].MyCastTime}) {
+               /call GetBardSlot "${AQSpell[${a}]}" AQ${PipeChar}${a}
+               /if (!${AQBardSlot[${a}]}) {
+                  /bc Msg: No BardSlot assigned. Turning off AA casting for: ${AQSpell[${a}]}
+                  /varset AQTarCnt[${a}] 0
+                  /continue
+               }
+            }
+         }
       } else /if (${AQGem[${a}].Equal[script]}) {
 |Script
          /varset PSTargetID ${tTargetID}
@@ -363,7 +399,12 @@ Sub AQCureCheck
          /if (${Me.State.Equal[sit]}) /stand
          /varset AQtTargetID ${tTargetID}
          /if (${tGem}==30) {
-            /alt act ${tSpellID}
+            /if (${AQBardSlot[${a}]}) {
+               /stopsong
+               /squelch /twist once ${AQBardSlot[${a}]}
+            } else {
+               /alt act ${tSpellID}
+            }
             /delay 2
             /if (${tPrevTarget}) /target id ${tPrevTarget}
          } else /if (${tGem}==20) {
@@ -380,7 +421,7 @@ Sub AQCureCheck
             /delay ${Math.Calc[${tCT}-40]}
          }
          /goto :tContCure
-      } else /if (${Cast.Ready[${AQSpell[${a}]}|${AQGem[${a}]}]}) {
+      } else /if (${Cast.Ready[${AQSpell[${a}]}${PipeChar}${AQGem[${a}]}]}) {
          /if (${Target.ID}!=${tTargetID}) {
             /if (${Melee.Combat}) /attack off
             /squelch /tar id ${tTargetID}
@@ -388,8 +429,8 @@ Sub AQCureCheck
          }
          /varset AQtTargetID ${tTargetID}
          /varset tCastTime ${tCT}
-         /varset MBCurrentSpell AQ|${a}|${AQtTargetID}
-         /call MQ2Cast "${AQSpell[${a}]}" ${If[${Select[${AQGem[${a}]},${ValidSpellGems}]},gem,]}${AQGem[${a}]} ${tCastTime} CastCheck -targetid|${AQtTargetID} ${If[${AQSpellFoci[${a}].Length},-bandolier|${AQSpellFoci[${a}]},]}
+         /varset MBCurrentSpell AQ${PipeChar}${a}${PipeChar}${AQtTargetID}
+         /call MQ2Cast "${AQSpell[${a}]}" ${If[${Select[${AQGem[${a}]},${ValidSpellGems}]},gem,]}${AQGem[${a}]} ${tCastTime} CastCheck -targetid${PipeChar}${AQtTargetID} ${If[${AQSpellFoci[${a}].Length},-bandolier${PipeChar}${AQSpellFoci[${a}]},]}
          /delay 5
       }
       /if (${tCastTime} || ${Cast.Timing} || ${Cast.Status.Equal[i]}) /goto :tCastCure

@@ -3,17 +3,17 @@
 #Event AECEventC "#*#|${AECustomE3}|#*#"
 
 Sub Event_AECEventA
-   /if (${AECustomE1.Length} && ${AECustomE1.NotEqual[NULL]}) /call MBScript AECustomEvent1
+   /call MBScript AECustomEvent1
 /return
 
 
 Sub Event_AECEventB
-   /if (${AECustomE2.Length} && ${AECustomE2.NotEqual[NULL]}) /call MBScript AECustomEvent2
+   /call MBScript AECustomEvent2
 /return
 
 
 Sub Event_AECEventC
-   /if (${AECustomE2.Length} && ${AECustomE2.NotEqual[NULL]}) /call MBScript AECustomEvent3
+   /call MBScript AECustomEvent3
 /return
 
 
@@ -28,10 +28,14 @@ Sub LoadAEINIVals
       /next a
    }
    /call LoadINIVar AdvEvent AECount 0 AECount "${IniFile}" int
-   /call LoadINIVar AdvEvent AENewFormat 0 AENewFormat "${IniFile}" int
+   /call LoadINIVar AdvEvent AENewFormat ${DefaultNewFormat} AENewFormat "${IniFile}" int
+   /call LoadINIVar AdvEvent AECheckTime 8 AECheckTime "${IniFile}" int
    /declare AECheckTimer timer outer
+| If setting up new ini, create a dummy entry to show a template
+   /if (${MBNewIni}) {
+      /call LoadAEIniEntry 0
+   }   
    /if (${AECount}) {
-      /call LoadINIVar AdvEvent AECheckTime 8 AECheckTime "${IniFile}" int
       /declare AEGem[${AECount}] string outer
       /declare AESpell[${AECount}] string outer
       /declare AESpellFoci[${AECount}] string outer
@@ -53,49 +57,15 @@ Sub LoadAEINIVals
       /declare AETarCnt[${AECount}] int outer
       /declare AEDiscTimer[${AECount}] int outer
       /declare AEBardSlot[${AECount}] int outer
-	  /declare AEClass[${AECount}] string outer
+      /declare AEClass[${AECount}] string outer
+      /declare AEDuration[${AECount}] int outer
+      /declare AEMana[${AECount}] int outer
       /declare tSpellID int local
       /for a 1 to ${AECount}
-         /if (${AENewFormat}) {
-            /call LoadINIVar AE${a} Gem " " AEGem[${a}] ${IniFile}
-            /call LoadINIVar AE${a} Spell " " AESpell[${a}] ${IniFile}
-            /call LoadINIVar AE${a} SpellFoci " " AESpellFoci[${a}] ${IniFile}
-            /call LoadINIVar AE${a} DurMod 0 AEDurMod[${a}] ${IniFile}
-            /call LoadINIVar AE${a} Delay 0 AEDelay[${a}] ${IniFile}
-            /call LoadINIVar AE${a} EventMinMana 0 AEEventMinMana[${a}] ${IniFile}
-            /call LoadINIVar AE${a} EventMinHP 0 AEEventMinHP[${a}] ${IniFile}
-            /call LoadINIVar AE${a} EventMinEndur 0 AEEventMinEndur[${a}] ${IniFile}
-            /call LoadINIVar AE${a} MinMana 0 AEMinMana[${a}] ${IniFile}
-            /call LoadINIVar AE${a} MaxMana 101 AEMaxMana[${a}] ${IniFile}
-            /call LoadINIVar AE${a} MinHP 0 AEMinHP[${a}] ${IniFile}
-            /call LoadINIVar AE${a} MaxHP 101 AEMaxHP[${a}] ${IniFile}
-            /call LoadINIVar AE${a} MinEndur 0 AEMinEndur[${a}] ${IniFile}
-            /call LoadINIVar AE${a} MaxEndur 101 AEMaxEndur[${a}] ${IniFile}
-            /call LoadINIVar AE${a} TarType "war shd pal rng mnk rog brd bst ber shm clr dru wiz mag enc nec self tnt" AETarType[${a}] ${IniFile}
-            /call LoadINIVar AE${a} SpellAlias " " AESpellAlias[${a}] ${IniFile}
-            /call LoadINIVar AE${a} Announce " " AEAnnounce[${a}] ${IniFile}
-            /call LoadINIVar AE${a} TarCnt 1 AETarCnt[${a}] ${IniFile}
-         } else {
-            /call LoadINIVar AdvEvent AEGem${a} " " AEGem[${a}] ${IniFile}
-            /call LoadINIVar AdvEvent AESpell${a} " " AESpell[${a}] ${IniFile}
-            /call LoadINIVar AdvEvent AESpellFoci${a} " " AESpellFoci[${a}] ${IniFile}
-            /call LoadINIVar AdvEvent AEDurMod${a} 0 AEDurMod[${a}] ${IniFile}
-            /call LoadINIVar AdvEvent AEDelay${a} 0 AEDelay[${a}] ${IniFile}
-            /call LoadINIVar AdvEvent AEEventMinMana${a} 0 AEEventMinMana[${a}] ${IniFile}
-            /call LoadINIVar AdvEvent AEEventMinHP${a} 0 AEEventMinHP[${a}] ${IniFile}
-            /call LoadINIVar AdvEvent AEEventMinEndur${a} 0 AEEventMinEndur[${a}] ${IniFile}
-            /call LoadINIVar AdvEvent AEMinMana${a} 0 AEMinMana[${a}] ${IniFile}
-            /call LoadINIVar AdvEvent AEMaxMana${a} 101 AEMaxMana[${a}] ${IniFile}
-            /call LoadINIVar AdvEvent AEMinHP${a} 0 AEMinHP[${a}] ${IniFile}
-            /call LoadINIVar AdvEvent AEMaxHP${a} 101 AEMaxHP[${a}] ${IniFile}
-            /call LoadINIVar AdvEvent AEMinEndur${a} 0 AEMinEndur[${a}] ${IniFile}
-            /call LoadINIVar AdvEvent AEMaxEndur${a} 101 AEMaxEndur[${a}] ${IniFile}
-            /call LoadINIVar AdvEvent AETarType${a} "war shd pal rng mnk rog brd bst ber shm clr dru wiz mag enc nec self tnt" AETarType[${a}] ${IniFile}
-            /call LoadINIVar AdvEvent AESpellAlias${a} " " AESpellAlias[${a}] ${IniFile}
-            /call LoadINIVar AdvEvent AEAnnounce${a} " " AEAnnounce[${a}] ${IniFile}
-            /call LoadINIVar AdvEvent AETarCnt${a} 1 AETarCnt[${a}] ${IniFile}
-         }
-         /if (${Select[${AEGem[${a}]},${ValidSpellGems}]} && ${AESpell[${a}].Length}) {
+         /call LoadAEIniEntry ${a}
+         /varset tSpellID 0
+         /if (${Select[${AEGem[${a}]},${ValidSpellGems}]}) {
+|Spell
             /if (${Me.Book[${Me.Book[${AESpell[${a}]}]}].ID}) {
                /varset AESpell[${a}] ${Me.Book[${Me.Book[${AESpell[${a}]}]}].Name}
             } else /if (${Me.Book[${Me.Book[${AESpell[${a}]} ]}].ID}) {
@@ -103,43 +73,133 @@ Sub LoadAEINIVals
             } else /if (${Me.Book[${Spell[${AESpell[${a}]}].RankName}]}) {
                /varset AESpell[${a}] ${Spell[${AESpell[${a}]}].RankName}
             } else {
-               /bc Msg: Spell ${AESpell[${a}]} Not found in your book. Please check your .ini settings.
+               /if (${AETarCnt[${a}]} || ${InfoMsgLevel}) {
+                  /bc Msg: Spell ${AESpell[${a}]} Not found in your book. Please check your .ini settings.
+               }
                /varset AETarCnt[${a}] 0
             }
-         } else /if (${AEGem[${a}].Find[item]}) {
-            /if (!${FindItem[=${AESpell[${a}]}].ID}) {
-               /bc Msg: Event Item not found: ${AESpell[${a}]}. Check your .ini settings (or get more of the item).
+            /varset tSpellID ${Me.Book[${Me.Book[${AESpell[${a}]}]}].ID}
+            /varset AEMana[${a}] ${Spell[${tSpellID}].Mana}
+         } else /if (${AEGem[${a}].Equal[item]}) {
+|Item
+            /if (${FindItem[=${AESpell[${a}]}].ID}) {
+               /varset tSpellID ${FindItem[=${AESpell[${a}]}].Spell.ID}
+            } else {
+               /if (${AETarCnt[${a}]} || ${InfoMsgLevel}) {
+                  /bc Msg: Event Item not found: ${AESpell[${a}]}. Check your .ini settings (or get more of the item).
+               }
             } 
          } else /if (${AEGem[${a}].Equal[alt]}) {
+|Alt
             /if (!${Me.AltAbility[${AESpell[${a}]}].ID} && !${Me.Shrouded}) {
-               /bc Msg: You don't have the AltAbility ${AESpell[${a}]}. Please check your .ini settings.
+               /if (${AETarCnt[${a}]} || ${InfoMsgLevel}) {
+                  /bc Msg: You don't have the AltAbility ${AESpell[${a}]}. Please check your .ini settings.
+               }
                /varset AETarCnt[${a}] 0
             }
+            /varset tSpellID ${Me.AltAbility[${AESpell[${a}]}].Spell.ID}
          } else /if (${AEGem[${a}].Equal[disc]}) {
+|Disc
             /if (${Me.CombatAbility[${Spell[${AESpell[${a}]}].RankName}]}) {
                /varset AESpell[${a}] ${Spell[${AESpell[${a}]}].RankName}
             } else {
-               /bc Msg: You don't have the Disc ${AESpell[${a}]}.  Please check AESpell${a} in your .ini
+               /if (${AETarCnt[${a}]} || ${InfoMsgLevel}) {
+                  /bc Msg: You don't have the Disc ${AESpell[${a}]}.  Please check AESpell${a} in your .ini
+               }
                /varset AETarCnt[${a}] 0
             }
+         } else /if (${AEGem[${a}].NotEqual[script]}) {
+            /if (${AETarCnt[${a}]} || ${InfoMsgLevel}) {
+               /bc Msg: Invalid Value for AEGem #${a}. Please check your .ini settings.
+            }
+            /varset AETarCnt[${a}] 0
          }
-		 /if (${AETarType[${a}].Find[any]}) {
-		    /varset AEClass[${a}] ${pcClasses}
-		 } else {
-		    /varset AEClass[${a}] 
-		    /for b 1 to 16
+         /if (${tSpellID}) {
+            /if (${Spell[${tSpellID}].Trigger.ID}) {
+               /if (${AEGem[${a}].Equal[alt]}) {
+                  /varset AEMana[${a}] ${Spell[${tSpellID}].Trigger.Mana}
+               }
+               /if (${Spell[${tSpellID}].Trigger.Duration}) {
+                  /varset AEDuration[${a}] ${Spell[${tSpellID}].Trigger.Duration.TotalSeconds}
+               }
+            } else /if (${Spell[${tSpellID}].Trigger[1].ID}) {
+               /if (${AEGem[${a}].Equal[alt]}) {
+                  /varset AEMana[${a}] ${Spell[${tSpellID}].Trigger[1].Mana}
+               }
+               /if (${Spell[${tSpellID}].Trigger[1].Duration}) {
+                  /varset AEDuration[${a}] ${Spell[${tSpellID}].Trigger[1].Duration.TotalSeconds}
+               } 
+            } else {
+               /if (${AEGem[${a}].Equal[alt]}) {
+                  /varset AEMana[${a}] ${Spell[${tSpellID}].Mana}
+               }
+               /if (${Spell[${tSpellID}].Duration}) {
+                  /varset AEDuration[${a}] ${Spell[${tSpellID}].Duration.TotalSeconds}
+               }
+            }
+         }
+         /if (${AETarType[${a}].Find[all]}) {
+            /varset AEClass[${a}] ${pcClasses}
+         } else /if (${AETarType[${a}].Find[any]}) {
+            /varset AEClass[${a}] ${pcClasses}
+         } else {
+            /varset AEClass[${a}] 
+            /for b 1 to ${pcClassCount}
                /if (${AETarType[${a}].Find[${pcClasses.Arg[${b}]}]}) {
-			      /varset AEClass[${a}] ${pcClasses.Arg[${b}]} ${AEClass[${a}]}
-		       }
-			/next b
-		 }
+                  /varset AEClass[${a}] ${pcClasses.Arg[${b}]} ${AEClass[${a}]}
+               }
+            /next b
+         }
       /next a
    }
 /return
 
 
+Sub LoadAEIniEntry(int a)
+   /if (${AENewFormat}) {
+      /call LoadINIVar AE${a} Gem " " ${If[${a},AEGem[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AE${a} Spell " " ${If[${a},AESpell[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AE${a} SpellFoci " " ${If[${a},AESpellFoci[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AE${a} DurMod 0 ${If[${a},AEDurMod[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AE${a} Delay 0 ${If[${a},AEDelay[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AE${a} EventMinMana 0 ${If[${a},AEEventMinMana[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AE${a} EventMinHP 0 ${If[${a},AEEventMinHP[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AE${a} EventMinEndur 0 ${If[${a},AEEventMinEndur[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AE${a} MinMana 0 ${If[${a},AEMinMana[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AE${a} MaxMana 101 ${If[${a},AEMaxMana[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AE${a} MinHP 0 ${If[${a},AEMinHP[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AE${a} MaxHP 101 ${If[${a},AEMaxHP[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AE${a} MinEndur 0 ${If[${a},AEMinEndur[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AE${a} MaxEndur 101 ${If[${a},AEMaxEndur[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AE${a} TarType " " ${If[${a},AETarType[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AE${a} SpellAlias " " ${If[${a},AESpellAlias[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AE${a} Announce " " ${If[${a},AEAnnounce[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AE${a} TarCnt 1 ${If[${a},AETarCnt[${a}],NOVAR]} ${IniFile}
+   } else {
+      /call LoadINIVar AdvEvent AEGem${a} " " ${If[${a},AEGem[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AdvEvent AESpell${a} " " ${If[${a},AESpell[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AdvEvent AESpellFoci${a} " " ${If[${a},AESpellFoci[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AdvEvent AEDurMod${a} 0 ${If[${a},AEDurMod[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AdvEvent AEDelay${a} 0 ${If[${a},AEDelay[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AdvEvent AEEventMinMana${a} 0 ${If[${a},AEEventMinMana[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AdvEvent AEEventMinHP${a} 0 ${If[${a},AEEventMinHP[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AdvEvent AEEventMinEndur${a} 0 ${If[${a},AEEventMinEndur[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AdvEvent AEMinMana${a} 0 ${If[${a},AEMinMana[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AdvEvent AEMaxMana${a} 101 ${If[${a},AEMaxMana[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AdvEvent AEMinHP${a} 0 ${If[${a},AEMinHP[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AdvEvent AEMaxHP${a} 101 ${If[${a},AEMaxHP[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AdvEvent AEMinEndur${a} 0 ${If[${a},AEMinEndur[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AdvEvent AEMaxEndur${a} 101 ${If[${a},AEMaxEndur[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AdvEvent AETarType${a} " " ${If[${a},AETarType[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AdvEvent AESpellAlias${a} " " ${If[${a},AESpellAlias[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AdvEvent AEAnnounce${a} " " ${If[${a},AEAnnounce[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AdvEvent AETarCnt${a} 1 ${If[${a},AETarCnt[${a}],NOVAR]} ${IniFile}
+   }
+/return
+
+
 Sub AEEventCheck
-   /if (${MBPause} || ${AECheckTimer} || ${${FollowPlug}.Following} && !${${FollowPlug}.Idle}) /return
+   /if (${MBPause} || ${AECheckTimer} || ${AdvPath.Following} && !${AdvPath.Idle}) /return
    /varset AECheckTimer ${AECheckTime}s
    /declare a int local
    /declare b int local
@@ -165,14 +225,14 @@ Sub AEEventCheck
       } else {
          /if (!${AETarType[${a}].Find[idle]} && !${ADMobFound}) /continue
       }
-	  /varset tTargetID 0
+      /varset tTargetID 0
       /if (${AETarType[${a}].Find[self]}) {
          /if (${Me.PctMana}>${AEMinMana[${a}]} && ${Me.PctMana}<=${AEMaxMana[${a}]}) {
             /if (${Me.PctEndurance}>${AEMinEndur[${a}]} && ${Me.PctEndurance}<=${AEMaxEndur[${a}]}) {
-               /if (${Me.PctHPs}>${AEMinHP[${a}]} && ${Me.PctHPs}<=${AEMaxHP[${a}]}) {			
+               /if (${Me.PctHPs}>${AEMinHP[${a}]} && ${Me.PctHPs}<=${AEMaxHP[${a}]}) {            
                   /varset tTargetID ${Me.ID}
                }
-			}
+            }
          }
       } else /if (${AETarType[${a}].Find[tnt]}) {
          /if (!${ACMATarget} || !${ACState} || !${Spawn[${ACMATarget}].ID} || ${Spawn[${ACMATarget}].Type.Equal[corpse]}) /continue
@@ -180,50 +240,42 @@ Sub AEEventCheck
       } else /if (${AEClass[${a}].Length}>2) {
          /for b 1 to ${NetBots.Counts}
             /if (!${Spawn[pc ${NetBots.Client.Arg[${b}]}].PctHPs} || ${Spawn[${NetBots.Client.Arg[${b}]}].Type.Equal[corpse]}) /continue
-			/if (${AEClass.Find[${NetBots[${NetBots.Client.Arg[${b}]}].Class.ShortName}]}) {
-			   /if (${NetBots[${NetBots.Client.Arg[${b}]}].PctMana}>${AEMinMana[${a}]} && ${NetBots[${NetBots.Client.Arg[${b}]}].PctMana}<=${AEMaxMana[${a}]} {
-			      /if (${NetBots[${NetBots.Client.Arg[${b}]}].PctEndurance}>${AEMinEndur[${a}]} && ${NetBots[${NetBots.Client.Arg[${b}]}].PctEndurance}<=${AEMaxEndur[${a}]} {
-			         /if (${NetBots[${NetBots.Client.Arg[${b}]}].PctHPs}>${AEMinHP[${a}]} && ${NetBots[${NetBots.Client.Arg[${b}]}].PctHPs}<=${AEMaxHP[${a}]} {
-					    /varset tTargetID ${NetBots[${NetBots.Client.Arg[${b}]}].ID}
-					 }
-				  }
-			   }
-			}
-			/if (${tTargetID}) /break
+            /if (${AEClass.Find[${NetBots[${NetBots.Client.Arg[${b}]}].Class.ShortName}]}) {
+               /if (${NetBots[${NetBots.Client.Arg[${b}]}].PctMana}>${AEMinMana[${a}]} && ${NetBots[${NetBots.Client.Arg[${b}]}].PctMana}<=${AEMaxMana[${a}]}) {
+                  /if (${NetBots[${NetBots.Client.Arg[${b}]}].PctEndurance}>${AEMinEndur[${a}]} && ${NetBots[${NetBots.Client.Arg[${b}]}].PctEndurance}<=${AEMaxEndur[${a}]}) {
+                     /if (${NetBots[${NetBots.Client.Arg[${b}]}].PctHPs}>${AEMinHP[${a}]} && ${NetBots[${NetBots.Client.Arg[${b}]}].PctHPs}<=${AEMaxHP[${a}]}) {
+                        /varset tTargetID ${NetBots[${NetBots.Client.Arg[${b}]}].ID}
+                     }
+                  }
+               }
+            }
+            /if (${tTargetID}) /break
          /next b 
       }
-	  /if (!${tTargetID}) /continue
+      /if (!${tTargetID}) /continue
 
       /varset tGem 0
       /varset tSpellID 0
       /varset tSpellDuration 0
       /if (${Select[${AEGem[${a}]},${ValidSpellGems}]}) {
 |Spell
-         /if (${Me.CurrentMana}<${Me.Book[${Me.Book[${AESpell[${a}]}]}].Mana}) /continue
+         /if (${Me.CurrentMana}<${AEMana[${a}]}) /continue
          /varset tSpellID ${Me.Book[${Me.Book[${AESpell[${a}]}]}].ID}
          /varset tGem ${AEGem[${a}]}
          /varcalc tCT ${Spell[${tSpellID}].MyCastTime}/100+40
-         /if (${Spell[${tSpellID}].Trigger.ID}) {
-            /if (${Spell[${tSpellID}].Trigger.Duration}) {
-               /varset tSpellDuration ${Spell[${tSpellID}].Trigger.Duration.TotalSeconds}
-            }
-		 } else /if (${Spell[${tSpellID}].Trigger[1].ID}) {
-            /if (${Spell[${tSpellID}].Trigger[1].Duration}) {
-               /varset tSpellDuration ${Spell[${tSpellID}].Trigger[1].Duration.TotalSeconds}
-            }
-         } else /if (${Spell[${tSpellID}].Duration}) {
-            /varset tSpellDuration ${Spell[${tSpellID}].Duration.TotalSeconds}
-         }
+         /varset tSpellDuration ${AEDuration[${a}]}
       } else /if (${AEGem[${a}].Find[item]}) {
 |Item
          /if (!${FindItem[=${AESpell[${a}]}].ID} || ${FindItem[=${AESpell[${a}]}].Timer}) /continue
          /varset tSpellID ${FindItem[=${AESpell[${a}]}].Spell.ID}
          /varset tGem 20
          /varcalc tCT ${FindItem[=${AESpell[${a}]}].CastTime}/100+40
-         /if (${Spell[${tSpellID}].Duration}) /varset tSpellDuration ${Spell[${tSpellID}].Duration.TotalSeconds}
+         /if (${Spell[${tSpellID}].Duration}) {
+            /varset tSpellDuration ${Spell[${tSpellID}].Duration.TotalSeconds}
+         }
          /if (${Me.Class.ShortName.Equal[BRD]}) {
             /if (!${AEBardSlot[${a}]}) {
-               /call GetBardSlot "${AESpell[${a}]}" AE|${a}
+               /call GetBardSlot "${AESpell[${a}]}" AE${PipeChar}${a}
                /if (!${AEBardSlot[${a}]}) {
                   /bc Msg: No BardSlot assigned. Turning off Item casting for: ${AESpell[${a}]}
                   /varset AETarCnt[${a}] 0
@@ -235,25 +287,21 @@ Sub AEEventCheck
 |Alt
          /if (!${Me.AltAbility[${AESpell[${a}]}].ID}) /continue
          /if (!${Me.AltAbilityReady[${AESpell[${a}]}]}) /continue
-         /if (${Me.AltAbility[${AESpell[${a}]}].Spell.Trigger.ID}) {
-            /if (${Me.CurrentMana}<${Me.AltAbility[${AESpell[${a}]}].Spell.Trigger.Mana}) /continue
-            /if (${Me.AltAbility[${AESpell[${a}]}].Spell.Trigger.Duration}) {
-               /varset tSpellDuration ${Me.AltAbility[${AESpell[${a}]}].Spell.Trigger.Duration.TotalSeconds}
-            }
-		 } else /if (${Me.AltAbility[${AESpell[${a}]}].Spell.Trigger[1].ID}) {
-            /if (${Me.CurrentMana}<${Me.AltAbility[${AESpell[${a}]}].Spell.Trigger[1].Mana}) /continue
-            /if (${Me.AltAbility[${AESpell[${a}]}].Spell.Trigger[1].Duration}) {
-               /varset tSpellDuration ${Me.AltAbility[${AESpell[${a}]}].Spell.Trigger[1].Duration.TotalSeconds}
-            }
-         } else {
-            /if (${Me.CurrentMana}<${Me.AltAbility[${AESpell[${a}]}].Spell.Mana}) /continue
-            /if (${Me.AltAbility[${AESpell[${a}]}].Spell.Duration}) {
-               /varset tSpellDuration ${Me.AltAbility[${AESpell[${a}]}].Spell.Duration.TotalSeconds}
-            }
-         }
+         /if (${Me.CurrentMana}<${AEMana[${a}]}) /continue
+         /varset tSpellDuration ${AEDuration[${a}]}
          /varset tSpellID ${Me.AltAbility[${AESpell[${a}]}].Spell.ID}
          /varset tGem 30
          /varcalc tCT ${Me.AltAbility[${AESpell[${a}]}].Spell.MyCastTime}/100+40
+         /if (${Me.Class.ShortName.Equal[BRD]}) {
+            /if (!${AEBardSlot[${a}]}) {
+               /call GetBardSlot "${AESpell[${a}]}" AE${PipeChar}${a}
+               /if (!${AEBardSlot[${a}]} && ${Spell[${tSpellID}].MyCastTime}) {
+                  /bc Msg: No BardSlot assigned. Turning off AA casting for: ${AESpell[${a}]}
+                  /varset AETarCnt[${a}] 0
+                  /continue
+               }
+            }
+         }
       } else /if (${AEGem[${a}].Equal[script]}) {
 |Script
          /varset PSTargetID ${tTargetID}
@@ -271,19 +319,19 @@ Sub AEEventCheck
          } else {
             /varset AEtTargetID ${Me.ID}
          }
-         /disc ${Spell[${AESpell[${a}]}].ID}
+         /disc ${Spell[${AESpell[${a}]}].Name}
          /varset tSpellDelay 0
          /varset tGem 50
          /goto :tContEvent
       }
 
       /if (!${tGem} || !${tSpellID} || !${tTargetID}) /continue
-	  /if (${tTargetID}!=${Me.ID}) {
+      /if (${tTargetID}!=${Me.ID}) {
          /if (${Spell[${tSpellID}].Range}) {
             /if (${Spawn[${tTargetID}].Distance}>${Spell[${tSpellID}].Range}) /continue
          } else /if (${Spell[${tSpellID}].AERange}) {
             /if (${Spawn[${tTargetID}].Distance}>${Spell[${tSpellID}].AERange}) /continue
-	     }
+         }
       }
       /if (${tGem}<19) {
          /if (${Me.Gem[${tGem}].ID}!=${tSpellID}) {
@@ -296,20 +344,20 @@ Sub AEEventCheck
       }
       /if (${Spell[${tSpellID}].TargetType.Equal[self]}) /varset tTargetID 0
       /if (${Spell[${tSpellID}].TargetType.Find[group]}) {
-	     /varset tTargetID ${If[${Target.Type.Equal[pc]},${Me.ID},0]}
-	  }	 
+         /varset tTargetID ${If[${Target.Type.Equal[pc]},${Me.ID},0]}
+      }     
       /varset AEtTargetID 0
       /varset tSpellDelay ${AEDelay[${a}]}
       /varset CastResult UNKNOWN
 :tCastEvent
       /if (${NetBots[${Me.CleanName}].Silenced} || ${NetBots[${Me.CleanName}].Charmed} || ${Select[${Me.State},STUN,HOVER,DEAD]}) /break
-      /if (${Spell[${tSpellID}].RecastTime.Float}>20 && ${Cast.Ready} && !${Cast.Ready[${tSpellID}|${AEGem[${a}]}]} && ${Select[${AEGem[${a}]},${ValidSpellGems}]}) /continue
+      /if (${Spell[${tSpellID}].RecastTime.Float}>20 && ${Cast.Ready} && !${Cast.Ready[${tSpellID}${PipeChar}${AEGem[${a}]}]} && ${Select[${AEGem[${a}]},${ValidSpellGems}]}) /continue
       /if (${DoHeals} && ${AHCount}) /call AHHealCheck
       /if (${tGem}==50) {
          /varset AEDiscTimer[${a}] ${Macro.RunTime}+${AESpellRecast[${a}]}
-         /disc ${tSpellID}
+         /disc ${Spell[${tSpellID}].Name}
          /varset tSpellDelay 0
-		 /varset AEtTargetID ${If[${tTargetID},${tTargetID},${Me.ID}]}
+         /varset AEtTargetID ${If[${tTargetID},${tTargetID},${Me.ID}]}
          /varset tSpellID 0
          /goto :tContEvent
       }
@@ -334,7 +382,12 @@ Sub AEEventCheck
          }
          /if (${Me.State.Equal[sit]}) /stand
          /if (${tGem}==30) {
-            /alt act ${Me.AltAbility[${AESpell[${a}]}].ID}
+            /if (${AEBardSlot[${a}]}) {
+               /stopsong
+               /squelch /twist once ${AEBardSlot[${a}]}
+            } else {
+               /alt act ${Me.AltAbility[${AESpell[${a}]}].ID}
+            }
             /delay 2
             /if (${tPrevTarget}) /target id ${tPrevTarget}
          } else /if (${tGem}==20) {
@@ -351,12 +404,12 @@ Sub AEEventCheck
             /delay ${Math.Calc[${tCT}-40]}
          }
          /goto :tContEvent
-      } else /if (${Cast.Ready[${AESpell[${a}]}|${AEGem[${a}]}]}) {
+      } else /if (${Cast.Ready[${AESpell[${a}]}${PipeChar}${AEGem[${a}]}]}) {
          /varset AEtTargetID ${tTargetID}
          /varset tCastTime ${tCT}
-         /varset MBCurrentSpell AE|${a}|${AEtTargetID}
-         /call MQ2Cast "${AESpell[${a}]}" ${If[${Select[${AEGem[${a}]},${ValidSpellGems}]},gem,]}${AEGem[${a}]} ${tCastTime} CastCheck -targetid|${AEtTargetID} ${If[${AESpellFoci[${a}].Length},-bandolier|${AESpellFoci[${a}]},]}
-		 /if (${interruptFlag}) /break
+         /varset MBCurrentSpell AE${PipeChar}${a}${PipeChar}${AEtTargetID}
+         /call MQ2Cast "${AESpell[${a}]}" ${If[${Select[${AEGem[${a}]},${ValidSpellGems}]},gem,]}${AEGem[${a}]} ${tCastTime} CastCheck -targetid${PipeChar}${AEtTargetID} ${If[${AESpellFoci[${a}].Length},-bandolier${PipeChar}${AESpellFoci[${a}]},]}
+         /if (${interruptFlag}) /break
          /if (!${AEtTargetID}) /varset AEtTargetID ${Me.ID}
          /if (!${Select[${Cast.Result},cast_immune,cast_takehold,cast_outofrange,cast_cannotsee,cast_distracted,cast_notarget]}) /goto :tContEvent
       }
@@ -387,7 +440,7 @@ Sub AEEventCheck
       /if (${Spell[${tSpellID}].RecastTime.TotalSeconds} && (${tSpellDelay}<=${Macro.RunTime} || ${Math.Calc[${tSpellDelay}-${Macro.RunTime}]}<${Spell[${tSpellID}].RecastTime.TotalSeconds})) /varset tSpellDelay ${Spell[${tSpellID}].RecastTime.TotalSeconds}
       /varcalc AETotDelay[${a}] ${tSpellDelay}
       /varset MBCurrentSpell
-	  /doevents
+      /doevents
       /break
    /next a
 /return

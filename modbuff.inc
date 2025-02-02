@@ -1,12 +1,14 @@
 
-#event OUTDOORS "#*#You can only cast this spell in the outdoors#*#"
-#event OUTDOORS "#*#You can't levitate in this zone#*#"
+#Event BuffBlocked "#*#Your #1# did not take hold on #2#. (Blocked by #3#.)#*#"
+#Event BuffBlocked "#*#Your #1# did not take hold. (Blocked by #3#.)#*#"
 
 Sub LoadABINIVals
    /declare a int local
    /declare b int local
    /call LoadINIVar AdvBuff ABCount 0 ABCount "${IniFile}" int
-   /call LoadINIVar AdvBuff ABNewFormat 0 ABNewFormat "${IniFile}" int
+   /call LoadINIVar AdvBuff ABNewFormat ${DefaultNewFormat} ABNewFormat "${IniFile}" int
+   /call LoadINIVar AdvBuff ABMobMax 18 ABMobMax "${IniFile}" int
+   /call LoadINIVar AdvBuff ABCheckTime 8 ABCheckTime "${IniFile}" int
    /declare ABCheckTimer timer outer
    /declare ABAliasList string outer
    /declare ABHasRecast bool outer FALSE
@@ -14,13 +16,25 @@ Sub LoadABINIVals
    /declare ABMountAB int outer 0
    /declare ABSelfShrinkAB int outer 0
    /declare ABSelfShrinkSize string outer
+   /declare ABSelfShrinkTries int outer 0
    /declare ABPetShrinkAB int outer 0
    /declare ABPetShrinkSize string outer
+   /declare ABPetShrinkTries int outer 0
+   /declare PetShrinkTries int outer
+   /declare SelfShrinkTries int outer
    /declare tABinterruptFlag bool outer
+   /declare ABGemInUse string outer
+   /declare SMPetCast bool outer FALSE
+   /declare DoBuffsCBT bool outer FALSE
+   /declare ABBuffBlocked bool outer
+   /declare ABBlockMatch string outer
+   /declare ABBlockCount int outer
+   /declare ABBlockSpell[10] string outer
+| If setting up new ini, create a dummy entry to show a template
+   /if (${MBNewIni}) {
+      /call LoadABIniEntry 0
+   }
    /if (${ABCount}) {
-      /call LoadINIVar AdvBuff ABMobMax 18 ABMobMax "${IniFile}" int
-      /call LoadINIVar AdvBuff ABCheckTime 8 ABCheckTime "${IniFile}" int
-      /declare DoBuffsCBT bool outer FALSE
       /declare ABMBL[${ABMobMax}] string outer
       /declare ABGem[${ABCount}] string outer
       /declare ABSpell[${ABCount}] string outer
@@ -37,43 +51,14 @@ Sub LoadABINIVals
       /declare ABCondition[${ABCount}] string outer
       /declare ABSpellID[${ABCount}] int outer
       /declare ABBardSlot[${ABCount}] int outer
-      /Declare ABWontStack[${ABCount}] string outer
-      /declare tSpellID int local
-      /declare ABGemInUse string outer
-      /declare SMPetCast bool outer FALSE
-      /declare OutDoorsFail bool outer FALSE
+      /declare ABSpellIconX[${ABCount}] string outer
+      /declare ABWontStack[${ABCount}] string outer
+      /declare ABMinLevel[${ABCount}] int outer
       /declare tString1 string local
       /declare tString2 string local
-      /declare ABSpellIconX[${ABCount}] string outer
+      
       /for a 1 to ${ABCount}
-         /if (${ABNewFormat}) {
-            /call LoadINIVar AB${a} Gem " " ABGem[${a}] ${IniFile}
-            /call LoadINIVar AB${a} Spell " " ABSpell[${a}] ${IniFile}
-            /call LoadINIVar AB${a} SpellFoci " " ABSpellFoci[${a}] ${IniFile}
-            /call LoadINIVar AB${a} DurMod 0 ABDurMod[${a}] ${IniFile}
-            /call LoadINIVar AB${a} SpellAlias " " ABSpellAlias[${a}] ${IniFile}
-            /call LoadINIVar AB${a} Announce " " ABAnnounce[${a}] ${IniFile}
-            /call LoadINIVar AB${a} SpellMinMana 0 ABSpellMinMana[${a}] ${IniFile}
-            /call LoadINIVar AB${a} TarCnt 0 ABTarCnt[${a}] ${IniFile}
-            /call LoadINIVar AB${a} TarType "tank war shd pal rng mnk rog brd bst ber shm clr dru wiz mag enc nec self mypet grp pet cbt idle" ABTarType[${a}] ${IniFile}
-            /call LoadINIVar AB${a} Recast FALSE ABRecast[${a}] ${IniFile}
-            /call LoadINIVar AB${a} SpellIcon " " ABSpellIcon[${a}] ${IniFile}
-            /call LoadINIVar AB${a} PreCondition "TRUE" ABCondition[${a}] ${IniFile}
-         } else {    
-            /call LoadINIVar AdvBuff ABGem${a} " " ABGem[${a}] ${IniFile}
-            /call LoadINIVar AdvBuff ABSpell${a} " " ABSpell[${a}] ${IniFile}
-            /call LoadINIVar AdvBuff ABSpellFoci${a} " " ABSpellFoci[${a}] ${IniFile}
-            /call LoadINIVar AdvBuff ABDurMod${a} 0 ABDurMod[${a}] ${IniFile}
-            /call LoadINIVar AdvBuff ABSpellAlias${a} " " ABSpellAlias[${a}] ${IniFile}
-            /call LoadINIVar AdvBuff ABAnnounce${a} " " ABAnnounce[${a}] ${IniFile}
-            /call LoadINIVar AdvBuff ABSpellMinMana${a} 0 ABSpellMinMana[${a}] ${IniFile}
-            /call LoadINIVar AdvBuff ABTarCnt${a} 0 ABTarCnt[${a}] ${IniFile}
-            /call LoadINIVar AdvBuff ABTarType${a} "tank war shd pal rng mnk rog brd bst ber shm clr dru wiz mag enc nec self mypet grp pet cbt idle" ABTarType[${a}] ${IniFile}
-            /call LoadINIVar AdvBuff ABRecast${a} FALSE ABRecast[${a}] ${IniFile}
-            /call LoadINIVar AdvBuff ABSpellIcon${a} " " ABSpellIcon[${a}] ${IniFile}
-            /call LoadINIVar AdvBuff ABPreCondition${a} "TRUE" ABCondition[${a}] ${IniFile}
-         }
-|        /if (${ABSpellIcon[${a}].Length}>1 && !${Spell[${ABSpellIcon[${a}]}].ID}) /echo ${If[${TimeStampOnEcho},[${Time}] ,]}ABSpellIcon${a} does not evaluate to a spell name.  Please check your spelling.
+         /call LoadABIniEntry ${a}
          /if (${ABSpellIcon[${a}].Length}>1) {
             /varset tString1 ${ABSpellIcon[${a}].Token[1,|]}
             /if (${tString1.Length}>1) {
@@ -81,21 +66,22 @@ Sub LoadABINIVals
             } else { 
                /varset tString2 ${ABSpellIcon[${a}].Arg[1,|]}
             }
-|/echo a1 - ${tString1}
-|/echo a2 - ${tString2}
             /if (${tString2.NotEqual[null]} && ${tString2.Length}>1) {
                /for b 1 to ${Math.Calc[${tString2.Count[,]}+1]}
                   /if (${Spell[${tString2.Arg[${b},,]}].ID}) {
                      /varset ABSpellIconX[${a}] ${Spell[${tString2.Arg[${b},,]}].ID} ${ABSpellIconX[${a}]}
                   } else {
-                     /echo ${If[${TimeStampOnEcho},[${Time}] ,]}ABSpellIcon${a} Additional (${tString2.Arg[${b},,]}) does not evaluate to a spell name.  Please check your spelling.
+                     /if (${ABTarCnt[${a}]} || ${InfoMsgLevel}) {
+                        /echo ${If[${TimeStampOnEcho},[${Time}] ,]}ABSpellIcon${a} Additional (${tString2.Arg[${b},,]}) does not evaluate to a spell name.  Please check your spelling.
+                     }
                   }
                /next b 
-| /echo ABSpellIconX${a} ${ABSpellIconX[${a}]}
             }
             /if (${tString1.NotEqual[null]} && ${tString1.Length}>1) {
                /if (!${Spell[${tString1}].ID}) {
-                  /echo ${If[${TimeStampOnEcho},[${Time}] ,]}ABSpellIcon${a} (${tString1}) does not evaluate to a spell name.  Please check your spelling.
+                  /if (${ABTarCnt[${a}]} || ${InfoMsgLevel}) {
+                     /echo ${If[${TimeStampOnEcho},[${Time}] ,]}ABSpellIcon${a} (${tString1}) does not evaluate to a spell name.  Please check your spelling.
+                  }
                   /varset ABSpellIcon[${a}]
                } else {
                   /varset ABSpellIcon[${a}] ${tString1}
@@ -103,13 +89,13 @@ Sub LoadABINIVals
             } else {
                /varset ABSpellIcon[${a}]
             }
-| /echo ABSpellIcon${a} ${ABSpellIcon[${a}]}
          } else {
             /varset ABSpellIcon[${a}]
          }
          /if (${ABTarType[${a}].Find[cbt]}) /varset DoBuffsCBT TRUE
          /varset ABAliasList ${ABAliasList} ${ABSpellAlias[${a}]}|
-         /if (${Select[${ABGem[${a}]},${ValidSpellGems}]} && ${ABSpell[${a}].Length}) {
+         /if (${Select[${ABGem[${a}]},${ValidSpellGems}]}) {
+|Spell
             /if (${Me.Book[${Me.Book[${ABSpell[${a}]}]}].ID}) {
                /varset ABSpell[${a}] ${Me.Book[${Me.Book[${ABSpell[${a}]}]}].Name}
                /varset ABSpellID[${a}] ${Me.Book[${Me.Book[${ABSpell[${a}]}]}].ID}
@@ -120,33 +106,62 @@ Sub LoadABINIVals
                /varset ABSpell[${a}] ${Spell[${ABSpell[${a}]}].RankName}
                /varset ABSpellID[${a}] ${Me.Book[${Me.Book[${ABSpell[${a}]}]}].ID}
             } else {
-               /bc Msg: Spell ${ABSpell[${a}]} Not found in your book. Please check your .ini settings.
+               /if (${ABTarCnt[${a}]} || ${InfoMsgLevel}) {
+                  /bc Msg: Spell ${ABSpell[${a}]} Not found in your book. Please check your .ini settings.
+               }
                /varset ABTarCnt[${a}] 0
             }
-         } else /if (${ABGem[${a}].Find[item]}) {
+            /if (!${IgnoreBuffLevelRestrictions}) {
+               /call GetMinLevel ${ABSpellID[${a}]}
+               /if (${Macro.Return.NotEqual[false]}) {
+                  /varset ABMinLevel[${a}] ${Macro.Return}
+               }
+            }
+            /call BuildNoStack ${a}
+            /if (${Macro.Return.NotEqual[false]}) {
+               /varset ABWontStack[${a}] ${Macro.Return}
+            }
+          } else /if (${ABGem[${a}].Equal[item]}) {
+|Item
             /if (${FindItem[=${ABSpell[${a}]}].ID}) {
-               /varset tSpellID ${FindItem[=${ABSpell[${a}]}].Spell.ID}
+               /varset ABSpellID[${a}] ${FindItem[=${ABSpell[${a}]}].Spell.ID}
             } else {
-               /bc Msg: Buff Item not found: ${ABSpell[${a}]}. Check your .ini settings (or get more of the item).
+               /if (${ABTarCnt[${a}]} || ${InfoMsgLevel}) {
+                  /bc Msg: Buff Item not found: ${ABSpell[${a}]}. Check your .ini settings (or get more of the item).
+               }
             }
          } else /if (${ABGem[${a}].Equal[alt]}) {
+|Alt
             /if (!${Me.AltAbility[${ABSpell[${a}]}].ID} && !${Me.Shrouded}) {
-               /bc Msg: You don't have the AltAbility ${ABSpell[${a}]}. Please check your .ini settings.
+               /if (${ABTarCnt[${a}]} || ${InfoMsgLevel}) {
+                  /bc Msg: You don't have the AltAbility ${ABSpell[${a}]}. Please check your .ini settings.
+               }
                /varset ABTarCnt[${a}] 0
             } else {
                /varset ABSpellID[${a}] ${Me.AltAbility[${ABSpell[${a}]}].Spell.ID}
             }
          } else /if (${ABGem[${a}].Equal[disc]}) {
+|Disc
             /if (${Me.CombatAbility[${Spell[${ABSpell[${a}]}].RankName}]}) {
                /varset ABSpell[${a}] ${Spell[${ABSpell[${a}]}].RankName}
                /varset ABSpellID[${a}] ${Me.CombatAbility[${Me.CombatAbility[${ABSpell[${a}]}]}].ID}
             } else {
-               /bc Msg: You don't have the ${ABSpell[${a}]} Disc. Please check your .ini settings.
+               /if (${ABTarCnt[${a}]} || ${InfoMsgLevel}) {
+                  /bc Msg: You don't have the ${ABSpell[${a}]} Disc. Please check your .ini settings.
+               }
                /varset ABTarCnt[${a}] 0
             }
+         } else /if (${ABGem[${a}].NotEqual[script]}) {
+|Script
+            /if (${ABTarCnt[${a}]} || ${InfoMsgLevel}) {
+               /bc Msg: Invalid Value for ABGem #${a}. Please check your .ini settings.
+            }
+            /varset ABTarCnt[${a}] 0
          }
          /if (${ABRecast[${a}]}) {
-            /if (${Spell[${ABSpellID[${a}]}].TargetType.Find[Group]} || ${ABTarType[${a}].Find[self]}) /varset ABRecast[${a}] FALSE
+            /if (${Spell[${ABSpellID[${a}]}].TargetType.Find[Group]} || ${ABTarType[${a}].Find[self]}) {
+               /varset ABRecast[${a}] FALSE
+            }
          }
          /if (${ABRecast[${a}]}) /varset ABHasRecast TRUE
          /if (${ABTarType[${a}].Find[petspell]} || ${ABTarType[${a}].Find[petcast]}) {
@@ -156,61 +171,73 @@ Sub LoadABINIVals
          } else /if (${ABTarType[${a}].Find[selfshrink]}) {
             /varset ABSelfShrinkAB ${a}
             /varset ABSelfShrinkSize ${If[${ABTarType[${a}].Arg[2,|].Length},${ABTarType[${a}].Arg[2,|]},1.5]}
+            /varset ABSelfShrinkTries ${If[${ABTarType[${a}].Arg[3,|].Length},${ABTarType[${a}].Arg[3,|]},1]}
+            /if (${ABSelfShrinkTries}<=0 || ${ABSelfShrinkTries}>3) /varset ABSelfShrinkTries 1
          } else /if (${ABTarType[${a}].Find[petshrink]}) {
             /varset ABPetShrinkAB ${a}
             /varset ABPetShrinkSize ${If[${ABTarType[${a}].Arg[2,|].Length},${ABTarType[${a}].Arg[2,|]},1.4]}
+            /varset ABPetShrinkTries ${If[${ABTarType[${a}].Arg[3,|].Length},${ABTarType[${a}].Arg[3,|]},1]}
+            /if (${ABPetShrinkTries}<=0 || ${ABPetShrinkTries}>3) /varset ABPetShrinkTries 1
+         }
+         /if (${ABTarType[${a}].Find[all]}) {
+            /varset ABTarType[${a}] ${ABTarType[${a}].Replace[all,${pcClasses}]}
+         } else /if (${ABTarType[${a}].Find[any]}) {
+            /varset ABTarType[${a}] ${ABTarType[${a}].Replace[any,${pcClasses}]}
          }
       /next a
    }
-
-| ABWontStack[${a}] - new idea.  Entry in MBCommon.ini "[Nostack]" stores spellid=spellname,spellname,spellname of spells that won't stack with the spellid.
-| works the same as ABSpellIcon without having to edit every toon's .ini file.
-| Initial entry is the spellid=spellname of the buff in question. 
-   /declare x int local
-   /declare z int local
-   /declare tIniEntry string local
-   /for x 1 to ${ABCount}
-      /if (${Select[${ABGem[${x}]},${ValidSpellGems}]} && !${Spell[${ABSpell[${x}]}].TargetType.Equal[self]}) {
-         /if (${Ini["${MBCommon}",Nostack,"${Spell[${ABSpell[${x}]}].ID}","NOTFOUND"].Equal[NOTFOUND]} || !${Ini["${MBCommon}","Nostack","${Spell[${ABSpell[${x}]}].ID}"].Length}) {
-            /ini "${MBCommon}" "NoStack" "${Spell[${ABSpell[${x}]}].ID}" "${ABSpell[${x}]}"
-            /varset ABWontStack[${x}] ${Spell[${ABSpell[${x}]}].ID}
-         } else {
-            /varset tIniEntry ${Ini["${MBCommon}","Nostack","${Spell[${ABSpell[${x}]}].ID}"]}
-            /if (${tIniEntry.Find[,]}) {
-               /for z 1 to ${Math.Calc[${tIniEntry.Count[,]}+1]}
-                  /varset ABWontStack[${x}] ${ABWontStack[${x}]} ${Spell[${tIniEntry.Arg[${z},,]}].ID}
-               /next z
-            } else {
-               /varset ABWontStack[${x}] ${Spell[${tIniEntry}].ID}
-            }
-         }
-         | /echo ABWontStack[${x}] will be ${ABWontStack[${x}]}
-      }
-   /next x
-   
 /return
 
 
+Sub LoadABIniEntry(int a)
+   /if (${ABNewFormat}) {
+      /call LoadINIVar AB${a} Gem " " ${If[${a},ABGem[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AB${a} Spell " " ${If[${a},ABSpell[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AB${a} SpellFoci " " ${If[${a},ABSpellFoci[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AB${a} DurMod 0 ${If[${a},ABDurMod[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AB${a} SpellAlias " " ${If[${a},ABSpellAlias[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AB${a} Announce " " ${If[${a},ABAnnounce[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AB${a} SpellMinMana 0 ${If[${a},ABSpellMinMana[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AB${a} TarCnt 0 ${If[${a},ABTarCnt[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AB${a} TarType " " ${If[${a},ABTarType[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AB${a} Recast FALSE ${If[${a},ABRecast[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AB${a} SpellIcon " " ${If[${a},ABSpellIcon[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AB${a} PreCondition "TRUE" ${If[${a},ABCondition[${a}],NOVAR]} ${IniFile}
+   } else {    
+      /call LoadINIVar AdvBuff ABGem${a} " " ${If[${a},ABGem[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AdvBuff ABSpell${a} " " ${If[${a},ABSpell[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AdvBuff ABSpellFoci${a} " " ${If[${a},ABSpellFoci[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AdvBuff ABDurMod${a} 0 ${If[${a},ABDurMod[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AdvBuff ABSpellAlias${a} " " ${If[${a},ABSpellAlias[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AdvBuff ABAnnounce${a} " " ${If[${a},ABAnnounce[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AdvBuff ABSpellMinMana${a} 0 ${If[${a},ABSpellMinMana[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AdvBuff ABTarCnt${a} 0 ${If[${a},ABTarCnt[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AdvBuff ABTarType${a} " " ${If[${a},ABTarType[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AdvBuff ABRecast${a} FALSE ${If[${a},ABRecast[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AdvBuff ABSpellIcon${a} " " ${If[${a},ABSpellIcon[${a}],NOVAR]} ${IniFile}
+      /call LoadINIVar AdvBuff ABPreCondition${a} "TRUE" ${If[${a},ABCondition[${a}],NOVAR]} ${IniFile}
+   }
+/return
+
 
 Sub ABBuffCheck
-   /if (${MBPause} || ${ABCheckTimer} || ${APPullDelay}) /return
+   /if (${MBPause} || ${ABCheckTimer} || ${APPullDelay} || !${DoBuffs}) /return
    /varset ABCheckTimer ${ABCheckTime}s
 
    /declare a int local
    /declare b int local
+   /declare x int local
    /declare tSpellID int local
    /declare tGem int local
    /declare tTargetID int local
    /declare tName string local
    /declare zPetID int local
    /declare tSpellRange int local
-  
    /for a 1 to ${ABCount}
       /call ValidateBuffCast
-	  /if (${Macro.Return.NotEqual[TRUE]}) /return
+      /if (${Macro.Return.NotEqual[TRUE]}) /return
       /if (!${ABTarCnt[${a}]}) /continue
       /if (${ABSpell[${a}].Left[5].Equal[Yaulp]} && ${Me.Mount.ID}) /continue
-
       /varset tGem 0
       /varset tSpellID 0
 
@@ -218,30 +245,31 @@ Sub ABBuffCheck
 |Spell
          /varset tSpellID ${ABSpellID[${a}]}
          /varset tGem ${ABGem[${a}]}
+         /if (${Select[${tSpellID},${SpellsRestrictedByZone}]}) /continue
          /if (${Me.Class.ShortName.Equal[BRD]}) {
-            /if (${Me.Gem[${tGem}].ID}!=${ABSpellID[${a}]}) {
-               /echo Memming ${ABSpell[${a}]} in gem ${tGem}
-               /stopsong
-               /delay 1s !${Me.Casting.ID}
-               /memorize "${ABSpell[${a}]}|gem${tGem}"
-               /delay 3s ${Me.Gem[${tGem}].ID}==${ABSpellID[${a}]}
+            /if (!${Me.Gem[${tGem}].Name.Length} || ${Me.Gem[${tGem}].Name.NotEqual[${ABSpell[${a}]}]}) {
+               /call MemGem ${tGem} "${ABSpell[${a}]}"
+               /if (${Macro.Return.NotEqual[TRUE]}) {
+                  /echo Msg: Failed Memorize for: ${ABSpell[${a}]}
+                  /continue
+               }
             }
             /if (!${ABTarType[${a}].Find[aura]}) {
-               /if (${Spell[${tSpellID}].DurationWindow} || ${Spell[${tSpellID}].Trigger.DurationWindow} || ${Spell[${tSpellID}].Trigger[1].DurationWindow}) {
+               /if (${Spell[${tSpellID}].Duration}) {
                   /if (${ABTarType[${a}].Find[cbt]} || ${Spell[${tSpellID}].SpellType.Equal[detrimental]}) {
-                     /call EditTwist cbt ${tGem} add
-                     |/varset BardCombatGems ${Macro.Return}
+                     /call EditTwist "${BardCombatGems}" ${tGem} add
+                     /varset BardCombatGems ${Macro.Return}
                      /if (${ABTarType[${a}].Find[idle]}) {
-                        /call EditTwist rest ${tGem} add
-                        |/varset BardRestGems ${Macro.Return}
+                        /call EditTwist "${BardRestGems}" ${tGem} add
+                        /varset BardRestGems ${Macro.Return}
                      }
                   } else {
-                     /call EditTwist rest ${tGem} add
-                     |/varset BardRestGems ${Macro.Return}
+                     /call EditTwist "${BardRestGems}" ${tGem} add
+                     /varset BardRestGems ${Macro.Return}
                   }
                   /continue
                }  
-			   /if (${Me.GemTimer[${tGem}]}) /continue
+               /if (${Me.GemTimer[${tGem}]}) /continue
                /if (${ABTarCnt[${a}]}>1 && ${Me.GroupSize}<${ABTarCnt[${a}]}) /continue
             }
          }
@@ -249,7 +277,9 @@ Sub ABBuffCheck
       } else /if (${ABGem[${a}].Find[item]}) {
 |Item
          /if (!${FindItem[=${ABSpell[${a}]}].ID} || ${FindItem[=${ABSpell[${a}]}].Timer}) /continue
-         /varset tSpellID ${FindItem[=${ABSpell[${a}]}].Spell.ID}
+|In case we didn't have it on startup
+         /varset ABSpellID[${a}] ${FindItem[=${ABSpell[${a}]}].Spell.ID}
+         /varset tSpellID ${ABSpellID[${a}]}
          /varset tGem 20
          /if (${Me.Class.ShortName.Equal[BRD]}) {
             /if (!${ABBardSlot[${a}]}) {
@@ -267,6 +297,16 @@ Sub ABBuffCheck
          /if (!${Me.AltAbilityReady[${ABSpell[${a}]}]} || ${Me.CurrentMana}<${Me.AltAbility[${ABSpell[${a}]}].Spell.Mana}) /continue
          /varset tSpellID ${ABSpellID[${a}]}
          /varset tGem 30
+         /if (${Me.Class.ShortName.Equal[BRD]}) {
+            /if (!${ABBardSlot[${a}]} && ${Spell[${tSpellID}].MyCastTime}) {
+               /call GetBardSlot "${ABSpell[${a}]}" AB|${a}
+               /if (!${ABBardSlot[${a}]}) {
+                  /bc Msg: No BardSlot assigned. Turning off AA casting for: ${ABSpell[${a}]}
+                  /varset ABTarCnt[${a}] 0
+                  /continue
+               }
+            }
+         }
       } else /if (${ABGem[${a}].Equal[script]}) {
 |Script
          /if (${ABScriptTime[${a}]}<=${Macro.RunTime}) {
@@ -280,18 +320,21 @@ Sub ABBuffCheck
          /varset tSpellID ${ABSpellID[${a}]}
          /varset tGem 40
       }
+
       /if (!${tGem}) /continue
       /if (${ABSpellIcon[${a}].Length}>1) {
-	     /if (!${Spell[${ABSpellIcon[${a}]}].ID}) /continue
-         /varset tSpellID ${Spell[${ABSpell[${a}]}].ID}
+         /if (!${Spell[${ABSpellIcon[${a}]}].ID}) /continue
+         /varset tSpellID ${Spell[${ABSpellIcon[${a}]}].ID}
       }
-	  /if (${ABTarCnt[${a}]}>1) {
-	     /varset tSpellRange ${If[${Spell[${tSpellID}].AERange},${Spell[${tSpellID}].AERange},${Spell[${tSpellID}].Range}]}
+      /if (${Select[${tSpellID},${SpellsRestrictedByZone}]}) /continue
+      /if (${Spell[${tSpellID}].Location}==1 && !${Zone.Outdoor}) /continue
+      /if (${ABTarCnt[${a}]}>1) {
+         /varset tSpellRange ${If[${Spell[${tSpellID}].AERange},${Spell[${tSpellID}].AERange},${Spell[${tSpellID}].Range}]}
          /if (${ABTarType[${a}].Find[grp]}) {
             /if (${Me.GroupSize}<${ABTarCnt[${a}]}) /continue
-	        /if (${SpawnCount[pc group radius ${tSpellRange}]}<${ABTarCnt[${a}]}) /continue
-	     } else {
-	        /if (${SpawnCount[pc radius ${tSpellRange}]}<${ABTarCnt[${a}]}) /continue
+            /if (${SpawnCount[pc group radius ${tSpellRange}]}<${ABTarCnt[${a}]}) /continue
+         } else {
+            /if (${SpawnCount[pc radius ${tSpellRange}]}<${ABTarCnt[${a}]}) /continue
          }
       }
       /varset tABinterruptFlag FALSE
@@ -319,78 +362,86 @@ Sub ABBuffCheck
          /call BuffThem ${a} ${tSpellID} ${tGem} ${tTargetID} 3
       } else /if (${ABSelfShrinkAB}==${a}) {
          /if (!${DoSelfShrink}) /continue
-         /if (${Me.Height}<=${ABSelfShrinkSize} || ${SelfShrinkTries}>2) /continue
+         /if (${Me.Height}<=${ABSelfShrinkSize} || ${SelfShrinkTries}>=${ABSelfShrinkTries}) /continue
          /varset tTargetID ${Me.ID}
          /call BuffThem ${a} ${tSpellID} ${tGem} ${tTargetID} 4
       } else /if (${ABPetShrinkAB}==${a}) {
          /if (!${Me.Pet.ID} || !${DoPetShrink}) /continue
-         /if (${Me.Pet.Height}<=${ABPetShrinkSize} || ${PetShrinkTries}>2) /continue
+         /if (${Me.Pet.Height}<=${ABPetShrinkSize} || ${PetShrinkTries}>=${ABPetShrinkTries}) /continue
          /varset tTargetID ${Me.Pet.ID}
          /call BuffThem ${a} ${tSpellID} ${tGem} ${tTargetID} 5
       } else /if (${ABTarType[${a}].Find[self]}) {
          /varset tTargetID ${Me.ID}
          /call BuffThem ${a} ${tSpellID} ${tGem} ${tTargetID} 1
       } else /if (${ABTarType[${a}].Find[mypet]}) {
-         /if (${Me.Pet.ID} && ${Select[${Me.Class.ShortName},shm,nec,mag,bst,enc,shd]}) {
+         /if (${Me.Pet.ID} && ${Select[${Me.Class.ShortName},${petClasses}]}) {
             /varset tTargetID ${Me.Pet.ID}
             /call BuffThem ${a} ${tSpellID} ${tGem} ${tTargetID} 1
          }
       } else /if (${ABTarType[${a}].Find[tank]} && ${TankName.Length}) {
-         /varset tTargetID ${Spawn[=${TankName}].ID}
+         /varset tTargetID ${Spawn[${TankID}].ID}
          /if (${tTargetID}) {
-            /call BuffThem ${a} ${tSpellID} ${tGem} ${tTargetID} ${If[${NetBots[${TankName}].ID},1,0]}
+            /call BuffThem ${a} ${tSpellID} ${tGem} ${tTargetID} ${If[${NetBots[${TankName.Arg[1,|]}].ID},1,0]}
          }
       } else {
 | The seemingly-redundant use of ${Spawn} in these sections is to make sure they are in the zone with me.
          /for b 1 to ${NetBots.Counts}
             /if (${NetBots[${NetBots.Client.Arg[${b}]}].ID} && ${Spawn[${NetBots[${NetBots.Client.Arg[${b}]}].ID}].ID}) {
-			   /varset tName ${NetBots.Client.Arg[${b}]}
+               /varset tName ${NetBots.Client.Arg[${b}]}
                /if (${ABTarType[${a}].Find[grp]}) {
                   /if (!${Group.Member[${tName}].Index} && !${tName.Equal[${Me.CleanName}]}) /continue
-               } else /if (${ABTarType[${a}].Find[oog]}) {
-                  /if (${Group.Member[${tName}].Index} || ${tName.Equal[${Me.CleanName}]}) /continue
-               } 
-               /if (${ABTarType[${a}].Find[nogroup]}) {
-                  /if (${NetBots[${Spawn[${tTargetID}].Master}].Grouped}  || ${NetBots[${tName}].Grouped}) /continue
-               } else /if (${ABTarType[${a}].Find[isgrouped]}) {
-                  /if (!${NetBots[${Spawn[${tTargetID}].Master}].Grouped}  || !${NetBots[${tName}].Grouped}) /continue
-               }
-               /if (${ABTarType[${a}].Find[${NetBots[${tName}].Class.ShortName}]}) {
- 			      /call BuffThem ${a} ${tSpellID} ${tGem} ${NetBots[${tName}].ID} 1
-				  /if (${tABinterruptFlag}) /break
-			   } 
-               /if (${NetBots[${tName}].PetID} && ${ABTarType[${a}].Find[pet]}) {
-                  /if (${Select[${NetBots[${tName}].Class.ShortName},shm,nec,mag,bst,enc,shd]}) {
-                     /call BuffThem ${a} ${tSpellID} ${tGem} ${NetBots[${tName}].PetID} 1
-                     /if (${tABinterruptFlag}) /break
+               } else {
+                  /if (${ABTarType[${a}].Find[oog]}) {
+                     /if (${Group.Member[${tName}].Index} || ${tName.Equal[${Me.CleanName}]}) /continue
+                  }
+                  /if (${ABTarType[${a}].Find[nogroup]}) {
+                     /if (${NetBots[${tName}].Grouped}) /continue
+                  } else /if (${ABTarType[${a}].Find[isgrouped]}) {
+                     /if (!${NetBots[${tName}].Grouped}) /continue
                   }
                }
-            }
-         /next b
-		 /if (${tABinterruptFlag}) /break
-         /if (${Group.Members} && !${ABTarType[${a}].Find[oog]}) {
-            /for b 1 to ${Group.Members}
-               /if (!${NetBots[${Group.Member[${b}].Name}].ID} && ${Spawn[${Group.Member[${b}].Name}].ID}) {
-                  /if (${ABTarType[${a}].Find[${Group.Member[${b}].Class.ShortName}]}) {
-			         /call BuffThem ${a} ${tSpellID} ${tGem} ${Group.Member[${b}].ID} 0
-				     /if (${tABinterruptFlag}) /break
-			      }
-                  /if (${Group.Member[${b}].Pet.ID} && ${ABTarType[${a}].Find[pet]}) {
-                     /if (${Select[${Group.Member[${b}].Class.ShortName},shm,nec,mag,bst,enc,shd]}) {
-                        /call BuffThem ${a} ${tSpellID} ${tGem} ${Group.Member[${b}].Pet.ID} 0
+               /if (${ABTarType[${a}].Find[${NetBots[${tName}].Class.ShortName}]}) {
+                  /call BuffThem ${a} ${tSpellID} ${tGem} ${NetBots[${tName}].ID} 1
+                  /if (${tABinterruptFlag}) /break
+               }
+               /if (${NetBots[${tName}].PetID} && ${ABTarType[${a}].Find[pet]}) {
+                  /if (${Select[${NetBots[${tName}].Class.ShortName},${petClasses}]}) {
+                     /if (!${Spell[${tSpellID}].TargetType.Find[group]} || ${NetBots[${tName}].Note.Find[MBPetAffinity]}) {
+                        /call BuffThem ${a} ${tSpellID} ${tGem} ${NetBots[${tName}].PetID} 1
                         /if (${tABinterruptFlag}) /break
                      }
                   }
                }
+            }
+         /next b
+         /if (${tABinterruptFlag}) /break
+         /if (${Group.Members} && !${ABTarType[${a}].Find[oog]} && !${ABTarType[${a}].Find[nogroup]}) {
+            /for b 1 to ${Group.Members}
+               /if (!${NetBots[${Group.Member[${b}].Name}].ID} && ${Spawn[${Group.Member[${b}].Name}].ID}) {
+                  /if (${ABTarType[${a}].Find[${Group.Member[${b}].Class.ShortName}]}) {
+                     /call BuffThem ${a} ${tSpellID} ${tGem} ${Group.Member[${b}].ID} 0
+                     /if (${tABinterruptFlag}) /break
+                  }
+                  /if (${Group.Member[${b}].Pet.ID} && ${ABTarType[${a}].Find[pet]}) {
+                     /if (${Select[${Group.Member[${b}].Class.ShortName},${petClasses}]}) {
+                        /if (!${Spell[${tSpellID}].TargetType.Find[group]}) {
+                           /call BuffThem ${a} ${tSpellID} ${tGem} ${Group.Member[${b}].Pet.ID} 0
+                           /if (${tABinterruptFlag}) /break
+                        }
+                     }
+                  }
+               }
             /next b
-         }			
+         }            
       }
-	  /if (${tABinterruptFlag}) /break
+      /if (${tABinterruptFlag}) /break
    /next a
 /return
 
 
 Sub BuffThem(int a, int tSpellID, int tGem, int tTargetID, int tBot) 
+   /if (!${DoBuffs}) /return
+   /declare b int local
    /declare c int local
    /declare tSpellRange int local
    /declare tSpellDuration int local
@@ -405,6 +456,8 @@ Sub BuffThem(int a, int tSpellID, int tGem, int tTargetID, int tBot)
    /declare tBuffs string local
    /declare tCastTime timer local
    /declare tRecastTime timer local
+   /declare tgtLevel int local
+   /declare tHeight float local
    
    /call ValidateBuffCast
    /if (${Macro.Return.NotEqual[TRUE]}) {
@@ -426,23 +479,30 @@ Sub BuffThem(int a, int tSpellID, int tGem, int tTargetID, int tBot)
    /if (${ABTarType[${a}].Find[aura]}) {
       /if (${ABTarType[${a}].Find[self]}) { 
          /if (${ABGem[${a}].Equal[disc]}) {
-            /if (!${Spell[${Me.Aura}].ID}) {
-               /disc ${Spell[${ABSpell[${a}]}].ID}
+            /if (!${Me.Aura.SpawnID}) {
+               /disc ${Spell[${ABSpell[${a}]}].Name}
                /delay 1s ${Me.Casting.ID}
                /delay ${Math.Calc[${Spell[${ABSpell[${a}]}].MyCastTime}/100+5].Int} !${Me.Casting.ID}
             }
             /return
          }
-		 /if (${ABSpell[${a}].Find[${Me.Aura[1]}]} || ${ABSpell[${a}].Find[${Me.Aura[2]}]}) /return
-		 /if (${Spell[${Me.Aura}].ID}) {
-		    /if (!${Me.AltAbility[Auroria Mastery]} && !${Me.AltAbility[Spirit Mastery]}) /return
-		    /if (${Spell[${Me.Aura[1]}].ID} && ${Spell[${Me.Aura[2]}].ID}) /return
-		 }
+         /for b 1 to 2
+            /if (${Me.Aura[${b}].SpawnID}) {
+               /if (${ABSpell[${a}].Find[${Me.Aura[${b}].Name}]}) /return
+| Check the Aura Spawn's Name. Some of the Auras don't match the spell names nor do they match the Effect Names. This may catch some.
+| For instance: Spell Name: Begulier's Aura, Aura Window Name: Beguliers Aura, Song Window Name: Beguiler's Aura Effect, Aura Spawn's CleanName: Beguiler's Aura
+               /if (${ABSpell[${a}].Find[${Spawn[${Me.Aura[${b}].SpawnID}].CleanName}]}) /return
+            }
+         /next b
+         /if (${Me.Aura.SpawnID}) {
+            /if (!${Me.AltAbility[Auroria Mastery]} && !${Me.AltAbility[Spirit Mastery]}) /return
+            /if (${Me.Aura[1].SpawnID} && ${Me.Aura[2].SpawnID}) /return
+         }
       } else /if (${Me.Class.ShortName.Equal[mag]} && ${ABTarType[${a}].Find[mypet]}) { 
-         /if (${Me.PetBuff[${ABSpell[${a}]} Effect]} || !${NetBots[${Me.CleanName}].StacksPet[${ABSpell[${a}]} Effect]}) /return
+         /if (${Me.PetBuff[${ABSpell[${a}]} Effect]} || !${Spell[${ABSpell[${a}]} Effect].StacksPet}) /return
       } else {
-	     /return
-	  }
+         /return
+      }
    } else /if (${ABGem[${a}].Equal[disc]}) {
 |Disc (not aura)
       /if (${Me.PctEndurance}<${ABSpellMinMana[${a}]} || ${ABScriptTime[${a}]}>${Macro.RunTime} || !${Me.CombatAbilityReady[${ABSpell[${a}]}]}) /return
@@ -452,7 +512,7 @@ Sub BuffThem(int a, int tSpellID, int tGem, int tTargetID, int tBot)
       /if (${Select[${Spell[${tSpellID}].TargetType},self,single]} && (${tTargetID}==${Me.ID} || ${ABTarType[${a}].Find[self]})) {
          /if (!${Me.Buff[${Spell[${tSpellID}].Name}].ID}) {
             /if (!${Spell[${tSpellID}].DurationWindow} && !${Me.FreeBuffSlots}) /goto :tBTReturn
-            /if (!${NetBots[${Me.CleanName}].Stacks[${tSpellID}]}) /goto :tBTReturn
+            /if (!${Spell[${tSpellID}].Stacks}) /goto :tBTReturn
          } else {
             /if (${Me.Buff[${Spell[${tSpellID}].Name}].Duration.Ticks}>6) /goto :tBTReturn
          }
@@ -485,41 +545,28 @@ Sub BuffThem(int a, int tSpellID, int tGem, int tTargetID, int tBot)
       /varset sVar ${ABMBL[${tABMob}].Mid[${ABMBL[${tABMob}].Find[b${sSpellID}]}|,14]}
       /varset sVarT ${sVar.Arg[2,|]}
       /varset tTime ${sVarT.Mid[2,${sVarT.Length}]}
-| /echo ${sSpellID} - *${sVar}*${sVarT}*${tTime}*
       /if (${tBot}) {
-         /varset tBuffs ${If[${Spawn[${tTargetID}].Type.Equal[pc]},${NetBots[${tName}].Buff} ${NetBots[${tName}].ShortBuff},${NetBots[${Spawn[${tTargetID}].Master.CleanName}].PetBuff}]}
+         /varset tBuffs ${If[${Spawn[${tTargetID}].Type.Equal[pc]},${NetBots[${tName}].Buff}${NetBots[${tName}].ShortBuff},${NetBots[${Spawn[${tTargetID}].Master.CleanName}].PetBuff}]}
          /if (${tBuffs.Find[${tSpellID}]}) {
             /if (!${tTime} || ${Spawn[${tTargetID}].Type.Equal[pet]}) /goto :tBTReturn
          } else {
             /if (${ABSpellIconX[${a}].Length}>1) {
                /for c 1 to ${Math.Calc[${ABSpellIconX[${a}].Count[ ]}+1]}
-                  /if (${tBuffs.Find[${ABSpellIconX[${a}].Arg[${c}]}]}) {
-| /echo skipping ABSpellIconX${a} - ${ABSpellIconX[${a}]} - ${ABSpellIconX[${a}].Arg[${c}]}
-                     /goto :tBTReturn
-                  }
+                  /if (${tBuffs.Find[${ABSpellIconX[${a}].Arg[${c}]}]}) /goto :tBTReturn
                /next c 
-| /echo ABSpellIconX${a} ${ABSpellIconX[${a}]}
             }
-            /if (${ABWontStack[${a}].Length}>1 && ${Spell[${tSpellID}].TargetType.NotEqual[Self]}) {
-               /if (${tBuffs.Find[${ABWontStack[${a}]}]} || ${tBuffs.Find[${tSpellID}]}) /goto :tBReturn
-               /for c 1 to ${Math.Calc[${ABWontStack[${a}].Count[ ]}+1]}
-                  /if (${tBuffs.Find[${ABWontStack[${a}].Arg[${c}]}]}) /goto :tBTReturn
+            /if (${ABWontStack[${a}].Length}) {
+               /for c 1 to ${Math.Calc[${ABWontStack[${a}].Count[,]}+1]}
+                  /if (${tBuffs.Find[${ABWontStack[${a}].Arg[${c},,]} ]}) /goto :tBTReturn
                /next c
             }
             /if (${Spawn[${tTargetID}].Type.Equal[pc]}) {
                /if (!${NetBots[${tName}].FreeBuffSlots}) /goto :tBTReturn
             }
             /if (${tBuffs.Length} && ${ABTarType[${a}].Find[${Spawn[${tTargetID}].Class.ShortName}]} || (${ABTarType[${a}].Find[self]} && ${tTargetID}==${Me.ID}) || (${ABTarType[${a}].Find[pet]} && ${Spawn[${tTargetID}].Master.ID}) || ${ABTarType[${a}].Find[tank]}) {
-               /if (${Spawn[${tTargetID}].Type.Equal[pc]}) {
-                  /if (!${NetBots[${tName}].Stacks[${tSpellID}]} || ${NetBots[${tName}].Buff.Find[${tSpellID}]}) {
-|                    /echo ${If[${TimeStampOnEcho},[${Time}] ,]}${ABSpell[${a}]} - Won't stack on ${tName}
-                     /goto :tBTReturn
-                  }
-               } else {
-                  /if (!${NetBots[${Spawn[${tTargetID}].Master.CleanName}].StacksPet[${tSpellID}]}) {
-|                    /echo ${If[${TimeStampOnEcho},[${Time}] ,]}${ABSpell[${a}]} - Won't stack on ${tName}
-                     /goto :tBTReturn
-                  }
+               /call BuffWillStack ${tSpellID} "${tBuffs}"
+               /if (${Macro.Return.Equal[false]}) {
+                  /goto :tBTReturn
                }
                /varset tTime 0
             }
@@ -527,29 +574,37 @@ Sub BuffThem(int a, int tSpellID, int tGem, int tTargetID, int tBot)
       }
       /varset tSpellRange ${If[${Spell[${tSpellID}].AERange},${Spell[${tSpellID}].AERange},${Spell[${tSpellID}].Range}]}
       /if (${tName.Equal[${Me.CleanName}]} && ${ABTarType[${a}].Find[self]}) {
-         /if (${NetBots[${Me.CleanName}].Stacks[${tSpellID}]} && ${Me.FreeBuffSlots} && !${Me.Buff[${Spell[${tSpellID}]}].ID}) /varset tTime 0
+         /if (${Spell[${tSpellID}].Stacks} && ${Me.FreeBuffSlots} && !${Me.Buff[${Spell[${tSpellID}]}].ID}) /varset tTime 0
       }
       /if (${tTime}>${Macro.RunTime}) /goto :tBTReturn
       /if (${Spawn[${tTargetID}].Distance3D}>${tSpellRange}) /goto :tBTReturn
       /if (${Spawn[${tTargetID}].Type.Equal[pet]} && !${Spawn[${tTargetID}].IsSummoned}) { 
          /if (${Spell[${ABSpell[${a}]}].TargetType.Find[group]} || ${Spell[${ABSpell[${a}]}].TargetType.Find[pet2]}) /goto :tBTReturn
       }
+   } else /if (${tBot}==4) {
+      /varset tHeight ${Me.Height}
+   } else /if (${tBot}==5) {
+      /varset tHeight ${Me.Pet.Height}
    }
    /if (${tGem}<20) {
       /if (${Me.CurrentMana}<${Spell[${tSpellID}].Mana} || ${Me.PctMana}<${ABSpellMinMana[${a}]}) /return
+      /if (${ABMinLevel[${a}]}) {
+         /varset tgtLevel ${If[${Spawn[${tTargetID}].Type.Equal[pc]},${Spawn[${tTargetID}].Level},${Spawn[${tTargetID}].Master.Level}]}
+         /if (${tgtLevel}<${ABMinLevel[${a}]}) /return
+      }
       /if (!${Me.Gem[${tGem}].Name.Length} || ${Me.Gem[${tGem}].Name.NotEqual[${ABSpell[${a}]}]}) {
          /if (${ABGemInUse.Length}>4) {
-		    /if (${ABGemInUse.Arg[1,|].Equal[${ABGem[${a}]}]} && ${ABGemInUse.Arg[3,|]}>${Macro.RunTime}) /return
+            /if (${ABGemInUse.Arg[1,|].Equal[${ABGem[${a}]}]} && ${ABGemInUse.Arg[3,|]}>${Macro.RunTime}) /return
          }
-		 /call MemGem ${tGem} "${ABSpell[${a}]}"
-		 /if (${Macro.Return.NotEqual[TRUE]}) {
-			/varset tABinterruptFlag TRUE
+         /call MemGem ${tGem} "${ABSpell[${a}]}"
+         /if (${Macro.Return.NotEqual[TRUE]}) {
+            /varset tABinterruptFlag TRUE
             /return
          }
       }
       /if (!${ABGemInUse.Length} || ${ABGemInUse.Arg[2,|].NotEqual[${ABSpell[${a}]}]}) {
-	     /varset ABGemInUse ${ABGem[${a}]}|${ABSpell[${a}]}|${Math.Calc[${Macro.RunTime}+${Spell[${ABSpell[${a}]}].RecastTime.Float}+10]}
-	  }
+         /varset ABGemInUse ${ABGem[${a}]}|${ABSpell[${a}]}|${Math.Calc[${Macro.RunTime}+${Spell[${ABSpell[${a}]}].RecastTime.Float}+10]}
+      }
    } else /if (${tGem}<40) {
       /if (${Me.PctMana}<${ABSpellMinMana[${a}]}) /return
    } else /if (${tGem}==40) {
@@ -562,7 +617,7 @@ Sub BuffThem(int a, int tSpellID, int tGem, int tTargetID, int tBot)
       /if (${Target.ID}!=${ABtTargetID}) /squelch /tar id ${ABtTargetID}
       /delay 1s ${Target.ID}==${ABtTargetID}
       /if (${Target.ID}!=${ABtTargetID}) /goto :tBTReturn
-      /disc ${Spell[${ABSpell[${a}]}].ID}
+      /disc ${Spell[${ABSpell[${a}]}].Name}
       /delay 1s ${Me.Casting.ID}
       /delay ${Math.Calc[${Spell[${ABSpell[${a}]}].MyCastTime}/100+5].Int} !${Me.Casting.ID}
       /varset ABScriptTime[${a}] ${Math.Calc[${ABDurMod[${a}]}+${Macro.RunTime}]}
@@ -572,11 +627,13 @@ Sub BuffThem(int a, int tSpellID, int tGem, int tTargetID, int tBot)
    /if (${Spell[${tSpellID}].TargetType.Equal[self]}) {
       /varset tTargetID 0
    }
-   /if (${Window[SpellBookWnd].Open}) /book
+   /if (${Window[SpellBookWnd].Open}) /book close
    /varset ABtTargetID 0
    /varset tSpellDelay 0
    /varset CastResult UNKNOWN
    /varset tRecastTime 3s
+   /call ResetBuffBlocks
+   /call ResetOutDoors
 
    /while (1) {
       /if (${NetBots[${Me.CleanName}].Silenced} || ${NetBots[${Me.CleanName}].Charmed} || ${Select[${Me.State},STUN,HOVER,DEAD]}) {
@@ -584,42 +641,57 @@ Sub BuffThem(int a, int tSpellID, int tGem, int tTargetID, int tBot)
          /return
       }
       /if (${DoHeals} && ${AHCount}) /call AHHealCheck
+      /call ValidateBuffCast
+      /if (${Macro.Return.NotEqual[TRUE]}) {
+         /varset tABinterruptFlag TRUE
+         /return
+      }   
       /if (${ABtTargetID}) {
          /if (${Cast.Status.Equal[i]}) {
             /doevents OUTDOORS
             /if (${Cast.Result.Equal[CAST_OUTDOORS]} || ${OutDoorsFail}) {
-               /bc Msg: Outdoor only spell, turning off buff [ ${ABSpell[${a}]} ] for this zone.  Check "${MBCommon}" if incorrect setting.
-               /if (!${Ini["${MBCommon}",RestrictedList,${Zone.ID}].Find[${tSpellID}|]}) {
-                  /if (${Ini["${MBCommon}",RestrictedList,${Zone.ID}].Length} >0 ) {
-                     /ini "${MBCommon}" RestrictedList ${Zone.ID} ${Ini["${MBCommon}",RestrictedList,${Zone.ID}]}${tSpellID}|
-                  } else {
-                     /ini "${MBCommon}" RestrictedList ${Zone.ID} ${tSpellID}|
-                     /echo ${If[${TimeStampOnEcho},[${Time}] ,]}/ini "${MBCommon}" RestrictedList ${Zone.ID} ${tSpellID}|
-                  }
-               }
-               /varset OutDoorsFail FALSE
+               /call AddToRestrictedList ${tSpellID}
+               /call BuildRestrictedList
                /return
             }
-            /if (${tBot}>1) {
-               /if (${tBot}==2) {
-                  /if (${Me.Pet.ID}) /break
-               } else /if (${tBot}==3) {
-                  /if (${Me.Mount.ID})) /break
-               } else /if (${tBot}==4) {
-			      /varcalc SelfShrinkTries ${SelfShrinkTries}+1
-                  /if (${Me.Height}<=${ABSelfShrinkSize} || ${SelfShrinkTries}>2) /break
-               } else /if (${tBot}==5) {
-			      /varcalc PetShrinkTries ${PetShrinkTries}+1
-                  /if (${Me.Pet.Height}<=${ABPetShrinkSize} || ${PetShrinkTries}>2) /break
+            /if (${tBot}==1) {
+               /if (${tGem}<20) {
+| Check for Blocked Buffs.
+                  /call CheckBuffBlocks ${tSpellID} ${ABtTargetID}
+                  /if (${Macro.Return.Equal[true]}) {
+                     /call UpdateStackInfo ${a} ${tSpellID} "${tBuffs}"
+                     /return
+                  }
                }
+            } else /if (${tBot}==2) {
+               /if (${Me.Pet.ID}) /break
+            } else /if (${tBot}==3) {
+               /if (${Me.Mount.ID})) /break
             }
-			/if (${Cast.Result.Equal[cast_success]} || ${Me.Class.ShortName.Equal[BRD]}) /break
+            /if (${Cast.Result.Equal[cast_success]} || ${Me.Class.ShortName.Equal[BRD]}) {
+               /if (${tBot}==4) {
+| If it doesn't look like Shrink is doing anything, don't do another.
+                  /if (${Me.Height}>=${Math.Calc[${tHeight}*.9]}) {
+                     /varset SelfShrinkTries ${ABSelfShrinkTries}
+                  } else {
+                     /varcalc SelfShrinkTries ${SelfShrinkTries}+1
+                  }
+               } else /if (${tBot}==5) {
+| If it doesn't look like Shrink is doing anything, don't do another.
+                  /if (${Me.Pet.Height}>=${Math.Calc[${tHeight}*.9]}) {
+                     /varset PetShrinkTries ${ABPetShrinkTries}
+                  } else {
+                     /varcalc PetShrinkTries ${PetShrinkTries}+1
+                  }
+               }
+               /break
+            }
             /if (${Select[${Cast.Result},CAST_FIZZLE,CAST_RECOVER,CAST_OUTOFMANA]}) { 
                /if (${Me.CurrentMana}<${Spell[${tSpellID}].Mana} || ${Me.PctMana}<${ABSpellMinMana[${a}]}) /return
-			   /if (${tRecastTime}) {
+               /if (${tRecastTime}) {
                   /varset ABtTargetID 0
-				  /continue
-			   }
+                  /continue
+               }
             } else /if (${Select[${Cast.Result},CAST_IMMUNE,CAST_TAKEHOLD]}) { 
                /if (!${Spell[${tSpellID}].TargetType.Find[group]}) /varset tSpellDelay 900
                /break
@@ -634,15 +706,22 @@ Sub BuffThem(int a, int tSpellID, int tGem, int tTargetID, int tBot)
             /goto :tBTReturn
          }
       } else /if (${Me.Class.ShortName.Equal[BRD]}) {
-         /if (${tTargetID} && ${Target.ID}!=${tTargetID} && ${Spell[${tSpellID}].TargetType.NotEqual[self]} && ${Spell[${tSpellID}].TargetType.Equal[Single]}) {
-            /if (${Melee.Combat}) /attack off
-            /squelch /tar id ${tTargetID}
-            /delay 1s ${Target.ID}==${tTargetID}
+         /if (${tTargetID} && ${Target.ID}!=${tTargetID} && ${Spell[${tSpellID}].TargetType.NotEqual[self]}) {
+            /if (${tTargetID}!=${Me.ID} && ${Spell[${tSpellID}].TargetType.Find[group]} && !${Group.Member[${tName}].Index} || ${Spell[${tSpellID}].TargetType.Equal[single]}) {
+               /if (${Melee.Combat}) /attack off
+               /squelch /tar id ${tTargetID}
+               /delay 1s ${Target.ID}==${tTargetID}
+            }
          }
          /varset ABtTargetID ${tTargetID}
          /if (${Me.State.Equal[sit]}) /stand
          /if (${tGem}==30) {
-            /alt act ${tSpellID}
+            /if (${ABBardSlot[${a}]}) {
+               /stopsong
+               /squelch /twist once ${ABBardSlot[${a}]}
+            } else {
+               /alt act ${tSpellID}
+            }
             /delay ${Math.Calc[${Me.AltAbility[${ABSpell[${a}]}].Spell.MyCastTime}/100+3]}
          } else /if (${tGem}==20) {
              /stopsong
@@ -653,11 +732,21 @@ Sub BuffThem(int a, int tSpellID, int tGem, int tTargetID, int tBot)
             /squelch /twist once ${tGem}
             /delay ${Math.Calc[${Spell[${ABSpell[${a}]}].MyCastTime}/100+3]}
          }
-		 /if (${tBot}==4) {
-		    /varcalc SelfShrinkTries ${SelfShrinkTries}+1
+         /if (${tBot}==4) {
+| If it doesn't look like Shrink is doing anything, don't do another.
+            /if (${Me.Height}>=${Math.Calc[${tHeight}*.9]}) {
+               /varset SelfShrinkTries ${ABSelfShrinkTries}
+            } else {
+               /varcalc SelfShrinkTries ${SelfShrinkTries}+1
+            }
          } else /if (${tBot}==5) {
-		    /varcalc PetShrinkTries ${PetShrinkTries}+1
-		 }
+| If it doesn't look like Shrink is doing anything, don't do another.
+            /if (${Me.Pet.Height}>=${Math.Calc[${tHeight}*.9]}) {
+               /varset PetShrinkTries ${ABPetShrinkTries}
+            } else {
+               /varcalc PetShrinkTries ${PetShrinkTries}+1
+            }
+         }
          /break
       } else {
          /delay 1s ${Cast.Ready}
@@ -665,7 +754,6 @@ Sub BuffThem(int a, int tSpellID, int tGem, int tTargetID, int tBot)
             /varset ABtTargetID ${tTargetID}
             /if (${Me.Shrouded}) /delay 1s
             /varset MBCurrentSpell AB|${a}|${ABtTargetID}
-            /doevents flush OUTDOORS
             /if (${tGem}<19) {
                /varcalc tCastTime ${Spell[${ABSpell[${a}]}].MyCastTime}/100+50
             } else /if (${tGem}==20) {
@@ -691,13 +779,13 @@ Sub BuffThem(int a, int tSpellID, int tGem, int tTargetID, int tBot)
                   }
                }
             }
-            /call MQ2Cast "${ABSpell[${a}]}" ${If[${Select[${ABGem[${a}]},${ValidSpellGems}]},gem,]}${ABGem[${a}]} ${tCastTime} CastCheck ${If[${ABtTargetID},${If[${Spawn[${ABtTargetID}].Type.Equal[pet]} && ${Spell[${ABSpell[${a}]}].TargetType.Find[group]},-targetid|${Spawn[${ABtTargetID}].Master.ID},-targetid|${ABtTargetID}]}, ]} ${If[${ABSpellFoci[${a}].Length},-bandolier|${ABSpellFoci[${a}]},]}
+            /call MQ2Cast "${ABSpell[${a}]}" ${If[${Select[${ABGem[${a}]},${ValidSpellGems}]},gem,]}${ABGem[${a}]} ${tCastTime} CastCheck ${If[${ABtTargetID},${If[${Spawn[${ABtTargetID}].Type.Equal[pet]} && ${Spell[${ABSpell[${a}]}].TargetType.Find[group]} && !${Spell[${ABSpell[${a}]}].TargetType.Find[single]},-targetid|${Spawn[${ABtTargetID}].Master.ID},-targetid|${ABtTargetID}]}, ]} ${If[${ABSpellFoci[${a}].Length},-bandolier|${ABSpellFoci[${a}]},]}
             /if (!${ABtTargetID}) {
                /varset ABtTargetID ${Me.ID}
             }
          } else {
-	        /if (${Cast.Ready} &&  ${Spell[${tSpellID}].RecastTime.Float}>5) /return
-	     }
+            /if (${Cast.Ready} &&  ${Spell[${tSpellID}].RecastTime.Float}>5) /return
+         }
       }
       /if (${interruptFlag}) {
          /varset tABinterruptFlag TRUE
@@ -718,12 +806,6 @@ Sub BuffThem(int a, int tSpellID, int tGem, int tTargetID, int tBot)
    }
    /varset ABGemInUse
    /varset MBCurrentSpell
-|  /if (${ADMobFound} || ${MBPause}) /return
-|   /if (${FollowFlag}) {
-|      /if (${Spawn[pc ${FollowID}].Distance}>${FollowDistance}) /return
-|   }
-|   /if (${Cursor.ID}) /call ClearCursor
-|   /call ADSpawnCheck Find
 :tBTReturn
    /doevents
 /return
@@ -773,27 +855,189 @@ Sub ValidateBuffCast
    /if (!${DoBuffs} || ${MBPause} || ${Me.State.Equal[feign]}) /return FALSE
    /call ADSpawnCheck Find
    /if (${ADMobFound} && ((${DoMelee} && !${ACState}) || !${DoBuffsCBT})) /return FALSE
-   /if (${FollowFlag}) {
+   /if (${AdvPath.Following} && !${AdvPath.Paused}) {
       /if (${Me.Moving}) /return FALSE
-      /if (${Spawn[${FollowID}].Distance}>${FollowDistance}) /return FALSE
+      /if (${Spawn[${FollowID}].Distance}>${FollowDistanceCheck}) /return FALSE
    }
    /if (${Cursor.ID}) /call ClearCursor
 /return TRUE
 
 
-Sub Event_OUTDOORS()
-   /echo ${If[${TimeStampOnEcho},[${Time}] ,]}Outdoor Spell..
-   /varset OutDoorsFail TRUE
-   /if (${Me.Class.ShortName.Equal[brd]}) {
-      /declare x int local 0
-      /echo ${If[${TimeStampOnEcho},[${Time}] ,]}${Cast.Stored} will be turned off for this zone.  Re-start macro or use alias to turn it back on.
-      /for x 1 to ${ABCount}
-          /if (${ABSpell[${x}].Equal[${Cast.Stored}]}) /varset ABTarCnt[${x}] 0
-      /next x
-      /if (!${ACState}) { 
-         /varset BardRestGems
-         /varset BardCombatGems
+Sub ResetBuffBlocks
+   /doevents flush BuffBlocked
+   /varset ABBlockCount 0
+   /varset ABBlockMatch
+/return
+
+
+Sub CheckBuffBlocks(int tSpellID,int tTargetID)
+   /declare b int local
+   /declare EventSpell string local
+   /declare EventTarget string local   
+   /varset ABBlockMatch
+   /varset EventSpell ${Spell[${tSpellID}].Name}
+   /varset EventTarget ${Spawn[${tTargetID}].Name},${Spawn[${tTargetID}].CleanName}
+   /while (1) {
+      /varset ABBuffBlocked FALSE
+      /doevents BuffBlocked
+      /if (!${ABBuffBlocked}) /break
+   }
+   /if (!${ABBlockCount}) /return FALSE
+   /for b 1 to ${ABBlockCount}
+      /if (${EventSpell.Find[${ABBlockSpell[${b}].Arg[1,|]}]}) {
+         /if (${Select[${ABBlockSpell[${b}].Arg[2,|]},${EventTarget}]}) {
+            /if (!${ABBlockMatch.Length}) {
+               /varset ABBlockMatch ${ABBlockSpell[${b}].Arg[3,|]}
+            } else /if (!${ABBlockMatch.Find[${ABBlockSpell[${b}].Arg[3,|]}]}) {
+               /varset ABBlockMatch ${ABBlockMatch}|${ABBlockSpell[${b}].Arg[3,|]}
+            }
+         }
       }
-      /call ABBuffCheck
+   /next b
+   /if (${ABBlockMatch.Length}) /return TRUE
+/return FALSE   
+   
+   
+Sub UpdateStackInfo(int a,int tSpellID,string tBuffs)
+   /declare b int local
+   /declare c int local
+| Search his buffs for the Spell. We want to get the SpellID from here in case this Spell Name has different IDs (like Heroic Bond)
+   /for c 1 to ${tBuffs.Count[ ]}
+      /if (${Spell[${tBuffs.Arg[${c}]}].Name.Equal[${ABBlockMatch}]}) {
+         /call AddNoStack ${tSpellID} "${Spell[${tBuffs.Arg[${c}]}].Name}|${Spell[${tBuffs.Arg[${c}]}].ID}"
+         /if (!${Select[${Spell[${tBuffs.Arg[${c}]}].ID},${ABWontStack[${a}]}]}) {
+            /varset ABWontStack[${a}] ${If[!${ABWontStack[${a}].Length},,${ABWontStack[${a}]},]}${Spell[${tBuffs.Arg[${c}]}].ID}
+         }
+| Add reciprocal NoStack
+         /call AddNoStack ${Spell[${tBuffs.Arg[${c}]}].ID} "${Spell[${tSpellID}].Name}|${tSpellID}"
+         /for b 1 to ${ABCount}
+            /if (${Select[${ABGem[${b}]},${ValidSpellGems}]} && ${ABSpellID[${b}]}==${Spell[${tBuffs.Arg[${c}]}].ID}) {
+               /if (!${Select[${tSpellID},${ABWontStack[${b}]}]}) {
+                  /varset ABWontStack[${b}] ${If[!${ABWontStack[${b}].Length},,${ABWontStack[${b}]},]}${tSpellID}
+               }
+            }
+         /next b
+         /break
+      }
+   /next c
+/return
+
+
+Sub Event_BuffBlocked(string Line,string BuffName,string Toon,string BlockName)
+   /if (!${Defined[Toon]}) {
+      /declare Toon string local ${Me.CleanName}
+   }
+   /varset ABBuffBlocked TRUE
+   /if (${BuffName.Right[6].Equal[ spell]}) /varset BuffName ${BuffName.Left[-6]}
+   /if (${ABBlockCount}<10) { 
+      /varcalc ABBlockCount ${ABBlockCount}+1
+      /varset ABBlockSpell[${ABBlockCount}] ${BuffName}|${Toon}|${BlockName}
    }
 /return
+
+
+Sub BuildNoStack(int a)
+   /declare b int local
+   /declare tString1 string local
+   /declare tString2 string local
+   /declare tString3 string local
+   /declare tWontStack string local
+   /declare tSpellID int local
+   /declare tSpellID2 int local
+   /if (${ABSpellIcon[${a}].Length}>1) {
+      /varset tSpellID ${Spell[${ABSpellIcon[${a}]}].ID}
+   } else {    
+      /varset tSpellID ${ABSpellID[${a}]}
+   }
+   /if (!${tSpellID}) /return FALSE
+   /if (!${Spell[${tSpellID}].ID} || ${Spell[${tSpellID}].TargetType.Equal[self]}) /return FALSE
+   /varset tString1 ${Ini["${MBCommon}",NoStack,"${tSpellID}","NOTFOUND"]}
+   /if (${tString1.Length} && ${tString1.NotEqual[NOTFOUND]} && ${tString1.Find[,]}) {
+      /varset tString3 ${tString1.Arg[1,,]}
+      /for b 2 to ${Math.Calc[${tString1.Count[,]}+1]}
+         /varset tString2 ${tString1.Arg[${b},,].Arg[2,|]}
+         /if (${tString2.Length} && ${tString2.NotEqual[NULL]}) {
+            /varset tSpellID2 ${tString2}
+         } else {
+            /varset tSpellID2 ${Spell[${tString1.Arg[${b},,].Arg[1,|]}].ID}
+         }
+         /if (${Spell[${tSpellID2}].ID}) {
+            /varset tString3 ${tString3},${Spell[${tSpellID2}].Name}|${Spell[${tSpellID2}].ID}
+            /varset tWontStack ${If[!${tWontStack.Length},,${tWontStack},]}${Spell[${tSpellID2}].ID}
+         }
+      /next b
+      /if (${tString3.NotEqual[${tString1}]}) {
+         /ini "${MBCommon}" "NoStack" "${tSpellID}" "${tString3}"
+      }
+   }
+/return ${tWontStack}
+
+
+Sub AddNoStack(int tSpellID,string tNoStack)
+   /declare b int local
+   /declare tString1 string local
+   /declare tString3 string local
+   /declare tBlockID int local ${tNoStack.Arg[2,|]}
+   /if (!${tSpellID} || !${tNoStack.Length} || !${tBlockID}) /return FALSE
+   /if (!${Spell[${tSpellID}].ID} || ${Spell[${tSpellID}].TargetType.Equal[self]}) /return FALSE
+   /varset tString1 ${Ini["${MBCommon}",NoStack,"${tSpellID}","NOTFOUND"]}
+   /if (!${tString1.Length} || ${tString1.Equal[NOTFOUND]}) {
+      /varset tString3 ${Spell[${tSpellID}].Name},${tNoStack}
+   } else {
+      /if (${tString1.Find[${tBlockID}]}) /return FALSE
+      /varset tString3 ${tString1},${tNoStack}
+   }
+   /if (${tString3.NotEqual[${tString1}]}) {
+      /ini "${MBCommon}" "NoStack" "${tSpellID}" "${tString3}"
+      /echo ${If[${TimeStampOnEcho},[${Time}] ,]}Added "${tNoStack}" to the NoStack list for ${Spell[${tSpellID}].ID}=${Spell[${tSpellID}].Name}
+      /return TRUE
+   }
+/return FALSE
+
+
+Sub GetMinLevel(int tSpellID)
+   /declare a int local
+   /declare tMinClassLevel int local 0
+   /declare tMinPCLevel int local 0
+   /declare tString1 string local
+   /if (!${tSpellID}) /return FALSE
+   /if (${Me.Class.ShortName.Equal[BRD]}) /return FALSE
+   /if (!${Spell[${tSpellID}].ID} || ${Select[${Spell[${tSpellID}].TargetType},self,pet]} || ${Spell[${tSpellID}].SpellType.Equal[detrimental]} || !${Spell[${tSpellID}].Duration}) /return FALSE
+   /varset tString1 ${Ini["${MBCommon}","MinLevel","${tSpellID}","NOTFOUND"]}   
+   /if (${tString1.Length} && ${tString1.NotEqual[NOTFOUND]}) {
+      /varset tMinPCLevel ${tString1.Arg[2,|]}
+      /if (${tMinPCLevel}>0 && ${tMinPCLevel}<255) {
+         /return ${tMinPCLevel}
+      }
+   }
+   /varset tMinClassLevel 255
+   /for a 1 to ${pcClassCount}
+      /if (${Spell[${tSpellID}].Level[${a}]} < ${tMinClassLevel}) {
+         /varset tMinClassLevel ${Spell[${tSpellID}].Level[${a}]}
+      }
+   /next a
+   /if (${tMinClassLevel}>=255) /return FALSE
+   /if (${tMinClassLevel} > 65) {
+      /varset tMinPCLevel 61
+   } else /if (${tMinClassLevel} > 50) {
+      /varset tMinPCLevel ${Math.Calc[${tMinClassLevel}/2+15].Int}
+   }
+   /if (${tMinPCLevel}>0 && ${tMinPCLevel}<255) {
+      /ini "${MBCommon}" "MinLevel" "${tSpellID}" "${Spell[${tSpellID}].Name}|${tMinPCLevel}"
+      /return ${tMinPCLevel}
+   }
+/return FALSE
+
+
+Sub BuffWillStack(int tSpellID,string tBuffs)
+   /if (!${tBuffs.Length}) /return TRUE
+   /declare a int local
+| The NetBots buff strings have a trailing space, so Count is correct without adding +1
+   /for a 1 to ${tBuffs.Count[ ]}
+      /if (!${Spell[${tSpellID}].WillStack[${tBuffs.Arg[${a}]}]}) {
+|/echo spell ${Spell[${tSpellID}].Name} will not stack because ${Spell[${tBuffs.Arg[${a}]}].Name} exists
+         /return FALSE
+      }
+   /next a
+|/echo spell ${Spell[${tSpellID}].Name} will stack
+/return TRUE

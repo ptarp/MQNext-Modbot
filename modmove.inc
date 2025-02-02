@@ -1,4 +1,4 @@
-#Event GuildPortal "#*#The Guildhall Portal has been aligned#*#"
+#Event GuildPortal "The Guildhall Portal has been aligned#*#"
 
 Sub Event_GuildPortal
    /echo ${If[${TimeStampOnEcho},[${Time}] ,]}GuildPortal Event
@@ -8,24 +8,31 @@ Sub Event_GuildPortal
 Sub LoadAMINIVals
    /call LoadINIVar Settings MBWayPntLocation "MBWayPnt.ini" MBWayPnt "${MBCommon}" string
    /if (!${MBWayPnt.Find[/]} && !${MBWayPnt.Find[\]}) /varset MBWayPnt ${IniLocation}${MBWayPnt}
-   /if (!${Defined[ZoneName]}) /declare ZoneName string outer ${Zone.Name}
-   /if (!${Defined[PathLoc]}) /declare PathLoc int outer
+   /declare PathLoc int outer
 /return
 
+| Note: Added 'nolook' to most of the /face commands.
+|       A Change was made to /face to pause macro execution until the command was completed.
+|       However, if AdvPath is currently in Following mode, this causes the /face command to pause the macro forever.
+|       Adding 'nolook' gets aroud this.
+| Additional note: /face heading xx does not have this problem but nolook doesn't hurt. 
 
 Sub MBZone(tZoneName)
+   /declare mbDoorList string local NIHALTAR801,TMTELEPORT800,CT_Crystal,VTDOOR302,NIHSTATUE800,NIHOBELISK800,POJDR501,HOHTESWTCH500,POTRANCOD500,POILAMP500,BOTPORT500,SRTGRUNE504,POTACPORTL500,HOHTESWITCH500
    /declare tZoneTimer timer local
    /declare tZoneTurn int local
    /declare tZoneTF bool local FALSE
    /declare tZoneID int local ${Zone.ID}
+   /declare i int local
+   /if (${Spawn[pc =${FollowName}].ID} || !${FollowName.Length}) /return
    /squelch /doortarget
    /if (${NearestSpawn[Priest_Of_Discord npc los radius 40].ID} || (${Zone.ID}==345 && ${DoorTarget.Distance3D}>90) || (${tZoneName.Length} && (${Zone.ID}==344 && ${DoorTarget.Distance3D}>40 && ${NearestSpawn[Magus npc radius 100].ID}) || (${Zone.ID}!=344 && ${NearestSpawn[Magus npc radius 100].ID}))) {
 | lobby = 344, hall 345
       /if (${Zone.ID}==345) {
-         /moveto loc -23 -134
+         /moveto loc -23 -134 mdist 10
          /delay 1s
 :waitforwindow 
-         /doevents Event_GuildPortal
+         /doevents GuildPortal
          /if (!${Window[LargeDialogWindow].Open}) { 
             /delay 5s ${Window[LargeDialogWindow].Open} 
             /goto :waitforwindow 
@@ -35,27 +42,37 @@ Sub MBZone(tZoneName)
       } else /if (${NearestSpawn[Priest_Of_Discord npc radius 100].ID}) {
          /squelch /tar Priest_Of_Discord npc 
          /delay 5
-         /squelch /face 
-         /delay ${Math.Calc[${Math.Rand[8]}+1]}s
-         /docommand ${If[${Zone.ID}==302,/say go home,/say wish to go]}      
-         /delay 15s
+         /squelch /face nolook ${If[${MacroQuest.BuildName.Equal[emu]},fast ,]}
+         /delay ${Math.Rand[20,50]}
+         /say ${If[${Zone.ID}==302,go home,wish to go]} 
+         /delay 5s
       } else /if (${NearestSpawn[Magus npc radius 100].ID}) {
          /squelch /tar magus npc
          /delay 5
-         /squelch /face 
-         /delay ${Math.Calc[${Math.Rand[8]}+1]}s
-         /if (${Select[${tZoneName},butcher,butcherblock]}) /say butcherblock
-         /if (${Select[${tZoneName},nedaria]}) /say nedaria
-         /if (${Select[${tZoneName},southro,south ro,sro]}) /say south ro
-         /if (${Select[${tZoneName},northro,north ro,nro]}) /say north ro
-         /if (${Select[${tZoneName},everfrost]}) /say everfrost
-         /if (${Select[${tZoneName},ecommonlands,east commonlands,ecommons]}) /say commonlands
-         /if (${Select[${tZoneName},natambi]}) /say natambi
-         /if (${Select[${tZoneName},abysmal]}) /say abysmal sea
+         /squelch /face nolook ${If[${MacroQuest.BuildName.Equal[emu]},fast ,]}
+         /delay ${Math.Rand[20,50]}
+         /if (${Select[${tZoneName},butcher,butcherblock]}) {
+            /say butcherblock
+         } else /if (${Select[${tZoneName},nedaria]}) {
+            /say nedaria
+         } else /if (${Select[${tZoneName},southro,south ro,sro]}) {
+            /say south ro
+         } else /if (${Select[${tZoneName},northro,north ro,nro]}) {
+            /say north ro
+         } else /if (${Select[${tZoneName},everfrost]}) {
+            /say everfrost
+         } else /if (${Select[${tZoneName},ecommonlands,east commonlands,ecommons]}) {
+            /say commonlands
+         } else /if (${Select[${tZoneName},natambi]}) {
+            /say natambi
+         } else /if (${Select[${tZoneName},abysmal]}) {
+            /say abysmal sea
+         }
+         /delay 5s
       }
    } else /if (${Zone.ID}==219 || ${Zone.ID}==202 && ${NearestSpawn[Herald_of_Druzzil npc los radius 40].ID} && ${Spawn[Herald_of_Druzzil npc].Distance}<40) {
 :TargCheck
-      /if (!${Me.ID} || !${ZoneName.Equal[${Zone.Name}]} || ${Spawn[${FollowName}].ID}) /return
+      /if (!${Me.ID} || !${ZoneName.Equal[${Zone.Name}]} || ${Spawn[pc =${FollowName}].ID}) /return
       /if (${Spawn[Herald_of_Druzzil npc].Distance}>39) /goto :NoMagusOrHoD
       /if (${Zone.ID}==219 && ${Spawn[Herald_of_Druzzil npc].Distance}<40) {
          /squelch /target id ${Spawn[Herald_of_Druzzil npc los radius 40].ID}
@@ -80,13 +97,24 @@ Sub MBZone(tZoneName)
       /if (!${Me.ID} || !${ZoneName.Equal[${Zone.Name}]} || ${Zone.ID} != ${tZoneID}) /return
       /delay ${Math.Rand[10]}S
       /varset tZoneTimer 15s
-      /if (${DoorTarget.Distance}<=70 && (${DoorTarget.Name.Find[cave]} || ${DoorTarget.Name.Find[_crystal]} || ${DoorTarget.Name.Find[trans_]} || ${DoorTarget.Name.Find[_book_]} || ${DoorTarget.Name.Find[crate]} || ${DoorTarget.Name.Find[pontree]} || ${DoorTarget.Name.Find[zonebox]} || ${DoorTarget.Name.Find[potran]} || ${DoorTarget.Name.Find[port]} || ${DoorTarget.Name.Find[rock]} || ${DoorTarget.Name.Find[tele]} || ${DoorTarget.Name.Find[prtl]} || ${DoorTarget.Name.Find[potrhut]} || ${DoorTarget.Name.Find[door]} || ${DoorTarget.Name.Find[grave]} || ${DoorTarget.Name.Find[switch]})) {
+      /squelch /doortarget
+      /delay 1s ${DoorTarget.Name.Length}
+      /if (${DoorTarget.Distance}>100) {
+         /nomodkey /keypress up hold
+         /for i 1 to 4
+            /delay 1s !${Me.ID}
+            /nomodkey /keypress up
+            /if (!${Me.ID} || !${ZoneName.Equal[${Zone.Name}]} || ${Zone.ID} != ${tZoneID}) /return
+         /next i
+      }
+      /squelch /face nolook ${If[${MacroQuest.BuildName.Equal[emu]},fast ,]}door
+      /if (${DoorTarget.Distance}<=70 && (${Select[${DoorTarget.Name},${mbDoorList}]} || ${DoorTarget.Name.Find[mazedoor]} || ${DoorTarget.Name.Find[cave]} || ${DoorTarget.Name.Find[_crystal]} || ${DoorTarget.Name.Find[trans_]} || ${DoorTarget.Name.Find[_book_]} || ${DoorTarget.Name.Find[crate]} || ${DoorTarget.Name.Find[pontree]} || ${DoorTarget.Name.Find[zonebox]} || ${DoorTarget.Name.Find[potran]} || ${DoorTarget.Name.Find[port]} || ${DoorTarget.Name.Find[rock]} || ${DoorTarget.Name.Find[tele]} || ${DoorTarget.Name.Find[prtl]} || ${DoorTarget.Name.Find[potrhut]} || ${DoorTarget.Name.Find[door]} || ${DoorTarget.Name.Find[grave]} || ${DoorTarget.Name.Find[switch]} || ${DoorTarget.Name.Find[EKTOWER]} || ${DoorTarget.Name.Find[FACADE]}|| ${DoorTarget.Name.Find[Guild]} || ${DoorTarget.Distance}<=20)) {
 :tMoveToDoor
          /if (!${Me.ID} || !${ZoneName.Equal[${Zone.Name}]} || ${Zone.ID} != ${tZoneID}) /return
          /if (${tZoneID}==${Zone.ID}) {
             /doevents DelayOnZone
             /call MBDoor
-            /if (!${Me.ID} || !${ZoneName.Equal[${Zone.Name}]} || ${Zone.ID} != ${tZoneID} || ${Spawn[${FollowName}].ID} || ${Zone.ID} != ${tZoneID}) /return TRUE
+            /if (!${Me.ID} || !${ZoneName.Equal[${Zone.Name}]} || ${Zone.ID} != ${tZoneID} || ${Spawn[pc =${FollowName}].ID} || ${Zone.ID} != ${tZoneID}) /return TRUE
             /delay 3
             /if (${Window[LargeDialogWindow].Open}) /nomodkey /notify LargeDialogWindow LDW_YesButton leftmouseup
             /delay 4s !${Window[LargeDialogWindow].Open}
@@ -103,20 +131,20 @@ Sub MBZone(tZoneName)
             } else /if (${tZoneTimer}<50) {
                /if (${tZoneTurn}) {
                   /nomodkey /keypress strafe_left hold
-                  /delay 5
+                  /delay 2
                   /nomodkey /keypress strafe_left
                   /varset tZoneTurn 0
                } else {
                   /nomodkey /keypress strafe_right hold
-                  /delay 5
+                  /delay 2
                   /nomodkey /keypress strafe_right
                   /varset tZoneTurn 1
                }
             }
             /if (${Target.ID}) /squelch /tar clear
             /squelch /doortarget
-            /squelch /face door nolook
-            /nomodkey /keypress home
+            /squelch /face nolook ${If[${MacroQuest.BuildName.Equal[emu]},fast ,]}door
+|           /nomodkey /keypress home
             /delay 1
             /nomodkey /keypress u hold
             /delay 2
@@ -126,10 +154,10 @@ Sub MBZone(tZoneName)
          }
       } else {
 :tNotaDoor
-         /if (!${Me.ID} || !${ZoneName.Equal[${Zone.Name}]} || ${Zone.ID} != ${tZoneID} || ${Spawn[${FollowName}].ID} || ${Zone.ID} != ${tZoneID}) /return TRUE
+         /if (!${Me.ID} || !${ZoneName.Equal[${Zone.Name}]} || ${Zone.ID} != ${tZoneID} || ${Spawn[pc =${FollowName}].ID} || ${Zone.ID} != ${tZoneID}) /return TRUE
          /if (${Select[${tZoneTurn},0,2,4]}) {
             /nomodkey /keypress forward hold
-            /delay 4s
+            /delay 4s !${Me.ID} || !${ZoneName.Equal[${Zone.Name}]} || ${Zone.ID} != ${tZoneID} || ${Spawn[pc =${FollowName}].ID} || ${Zone.ID} != ${tZoneID}
             /nomodkey /keypress forward
          }
          /if (${Select[${tZoneTurn},1,3]} && !${Zone.ShortName.Equal[shadowhaven]}) {
@@ -172,20 +200,20 @@ Sub MBMoveTo(MBy,MBx,int MBp,int MBt)
    }
    /squelch /stick off
    /squelch /moveto unpause
-   /squelch /moveto loc ${MBy} ${MBx}
+   /squelch /moveto loc ${MBy} ${MBx} mdist 10
    
    /while (${tMoveTimer}) {
       /doevents ImHit
       /if (!${tMoveCheck}) {
          /if (${APAggro} && !${MBp}) {
-		    /varset tMB TRUE
+            /varset tMB TRUE
             /break
          }
          /varset tDistNow ${Math.Distance[${Me.Y},${Me.X}:${MBy},${MBx}]}
          /doevents
          /if (${tZoneID}!=${Zone.ID}) { 
             /varset tMB ZONED
-			/break
+            /break
          }
          /if (${tDistThen}-${tDistNow}<2 && ${Me.Moving} && !${Me.Stunned}) {
             /nomodkey /keypress forward
@@ -204,7 +232,7 @@ Sub MBMoveTo(MBy,MBx,int MBp,int MBt)
                }
                /varset tDoor 1
             } else {
-			   /nomodkey /keypress ${If[${Math.Rand[99]}>50,strafe_right,strafe_left]} hold
+               /nomodkey /keypress ${If[${Math.Rand[99]}>50,strafe_right,strafe_left]} hold
                /delay 1s
                /nomodkey /keypress strafe_right
                /nomodkey /keypress strafe_left
@@ -212,14 +240,14 @@ Sub MBMoveTo(MBy,MBx,int MBp,int MBt)
             /delay 1s !${Me.Moving}
          }
          /if (!${Me.Moving}) {
-            /squelch /moveto loc ${MBy} ${MBx}
+            /squelch /moveto loc ${MBy} ${MBx} mdist 10
             /nomodkey /keypress jump
          }
-		 /varset tDistThen ${Math.Distance[${Me.Y},${Me.X}:${MBy},${MBx}]}
+         /varset tDistThen ${Math.Distance[${Me.Y},${Me.X}:${MBy},${MBx}]}
          /varset tDoor 0
          /varset tMoveCheck 15
       }
-	  /delay 2
+      /delay 2
       /if (${Select[${MoveTo},off]}) /break
    }
    /if (!${Select[${MoveTo},off]}) {
@@ -227,8 +255,8 @@ Sub MBMoveTo(MBy,MBx,int MBp,int MBt)
    }
    /if (${tMB.Equal[FALSE]}) {
       /if (${Math.Distance[${Me.Y},${Me.X}:${MBy},${MBx}]}<10) {
-	     /varset tMB TRUE
-	  }
+         /varset tMB TRUE
+      }
    }
 /return ${tMB}
 
@@ -246,7 +274,7 @@ Sub MBWayRecord(Section)
       /ini "${MBWayPnt}" "${Section}" "WPCount" "${WPCount}"
       /ini "${MBWayPnt}" "${Section}" "WP${WPCount}" "${Me.Y} ${Me.X}"
       /echo ${If[${TimeStampOnEcho},[${Time}] ,]}WayPoint[${WPCount}] ${Me.Y} ${Me.X}
-      /keypress duck
+      /nomodkey /keypress duck
    }
    /if (${Me.State.Equal[sit]}) /return
    /goto :tMBRTop
@@ -259,16 +287,35 @@ Sub MBDoor
    /declare tMB bool local FALSE
    /declare tZoneID int local ${Zone.ID}
 :tTop
+   /if (!${FollowName.Length} || ${Spawn[=${FollowName}].Distance} < 70 && ${Me.Moving}) /return
    /if (!${Me.ID} || !${ZoneName.Equal[${Zone.Name}]} || ${Zone.ID} != ${tZoneID}) /return
+   /nomodkey /keypress home
+   /nomodkey /keypress u
    /if (${Target.ID}) /squelch /tar clear
    /squelch /doortarget
-   /squelch /face door
+   /squelch /face nolook ${If[${MacroQuest.BuildName.Equal[emu]},fast ,]}door
+   /look -15
+   /nomodkey /keypress u
+   /if (${Target.ID}) /squelch /tar clear
+   /if (!${Me.ID} || !${ZoneName.Equal[${Zone.Name}]} || ${Zone.ID} != ${tZoneID}) /return
+   /squelch /doortarget
+   /squelch /face nolook ${If[${MacroQuest.BuildName.Equal[emu]},fast ,]}door
+   /look -25
+   /nomodkey /keypress u
+   /if (${Target.ID}) /squelch /tar clear
+   /if (!${Me.ID} || !${ZoneName.Equal[${Zone.Name}]} || ${Zone.ID} != ${tZoneID}) /return
+   /squelch /doortarget
+   /squelch /face nolook ${If[${MacroQuest.BuildName.Equal[emu]},fast ,]}door
+   /nomodkey /keypress u
+   /if (!${Me.ID} || !${ZoneName.Equal[${Zone.Name}]} || ${Zone.ID} != ${tZoneID}) /return
+   /if (${Target.ID}) /squelch /tar clear
    /if (!${Switch.Open}) {
-      /keypress use hold
+      /nomodkey /keypress use hold
       /delay 2
-      /keypress use
+      /nomodkey /keypress use
    }
    /delay 2
+   /nomodkey /keypress u
    /if (${Window[LargeDialogWindow].Open}) {
       /nomodkey /notify LargeDialogWindow LDW_YesButton leftmouseup
       /varset tMB TRUE
@@ -277,9 +324,9 @@ Sub MBDoor
    }
    /if (${Target.ID} || !${Switch.Open}) {
       /delay 7
-      /keypress forward hold
+      /nomodkey /keypress forward hold
       /delay 2
-      /keypress forward
+      /nomodkey /keypress forward
       /goto :tTop
    }
    /if (!${Zone.Name.Equal[${ZoneName}]} || !${Me.ID}) {
@@ -371,12 +418,12 @@ Sub MBWayPlay(Section,DirectionUD,ZoneTF,DataA,DataB)
                   /varset PathLoc 1
                }
                /if (${APTargetID}) {
-                  /squelch /face id ${APTargetID}
+                  /squelch /face nolook ${If[${MacroQuest.BuildName.Equal[emu]},fast ,]}id ${APTargetID}
                   /varset tMB TRUE
                } else {
-                  /if (${MakeCampD}) {
-				     /squelch /face Heading ${MakeCampD}
-				  }	 
+                  /if (${MakeCampD} && ${UseHeadings}) {
+                     /squelch /face nolook ${If[${MacroQuest.BuildName.Equal[emu]},fast ,]}heading ${MakeCampD}
+                  }     
                   /varset tMB FALSE
                   /if (${WP[${WPCount}].Arg[4].Length}) {
                      /echo ${If[${TimeStampOnEcho},[${Time}] ,]}Different Pull path detected
@@ -441,7 +488,7 @@ Sub MBWayPlay(Section,DirectionUD,ZoneTF,DataA,DataB)
 :tMWAbort
    }
    /echo ${If[${TimeStampOnEcho},[${Time}] ,]}Exiting MBWayPlay ${tMB}
-   /keypress back
+   /nomodkey /keypress back
    /if (${tPull}) {
       /if (${APLoopCntr}>3 && ${ACAssistPct}!=100) {
          /varset APLoopCntr 0
@@ -460,25 +507,23 @@ Sub SitCheck
    /if ((${Me.MaxMana}==0 || ${Me.PctMana}>=${SitManaPct}) && ${Me.PctEndurance}>=${SitEndurPct}) /return
    /if (${Me.Mount.ID} || ${Me.Moving} || ${Me.State.Equal[feign]} || ${Me.Sitting}) /return
    /if ((${Me.Casting.ID} && !${Me.Class.ShortName.Equal[BRD]}) || ${ACState} || ${Melee.Combat} || (${TankName.Equal[${Me.Name}]} && ${ADMobFound})) /return
-   /if (${FollowFlag} && ${Spawn[${FollowID}].Distance}>=15 && !${${FollowPlug}.Idle}) /return
+   /if (${FollowState} && ${Spawn[${FollowID}].Distance}>=${FollowDistance} && !${AdvPath.Idle}) /return
    /if (${Me.Class.ShortName.Equal[BRD]}) {
       /if (${Twist} && !${Me.State.Equal[sit]} && ${Twist.List.NotEqual[${BardRestGems} ]}) /return
    }
-   /if (${${FollowPlug}.Following} && ${Spawn[${FollowID}].Distance}>=9 && ${Target.ID}==${FollowID} && !${Me.State.Equal[sit]}) {
-      /squelch /face id ${Target.ID}
-      /keypress up hold
-      /delay 3s ${Spawn[${FollowID}].Distance}<8
-      /keypress up
+   /if (${AdvPath.Following} && ${Spawn[${FollowID}].Distance}>10 && ${Target.ID}==${FollowID} && !${Me.State.Equal[sit]}) {
+	  /squelch /moveto id ${FollowID} mdist 10
    }
-   /if (${Select[${Zone.ShortName},GuildHall,GuildLobby,PoKnowledge,Nexus,Bazaar,AbysmalSea,potranquility]}) /goto :SitOK
+   /if (${Select[${Zone.ShortName},${AllNonCombatZones}]}) /goto :SitOK
    /if (${ZoneName.NotEqual[${Zone.Name}]}) /call ProcessExcludeList
-   /declare TotalNPCs int local ${SpawnCount[npc radius ${SitAggroRadiusCheck} zradius ${ZRadius} noalert ${AlertList}]}
+   /declare tSpawnParms string local npc radius ${SitAggroRadiusCheck} zradius ${ZRadius} noalert ${AlertList}
+   /declare TotalNPCs int local ${SpawnCount[${tSpawnParms}]}
    /declare tNPCCount int local 0
    /declare npcid int local 0
 :GetSpawn
    /varcalc tNPCCount ${tNPCCount}+1
    /if (${tNPCCount}>${TotalNPCs}) /goto :SitOK
-   /varset npcid ${NearestSpawn[${tNPCCount},npc radius ${SitAggroRadiusCheck} zradius ${ZRadius} noalert ${AlertList}].ID}
+   /varset npcid ${NearestSpawn[${tNPCCount},${tSpawnParms}].ID}
    /if (!${npcid}) /goto :SitOK
    /if (!${Spawn[${npcid}].LineOfSight}) {
       /if (${ACMATarget}!=${npcid}) /goto :GetSpawn
@@ -492,8 +537,7 @@ Sub SitCheck
 :SitOK
    /if (${ADCharmAD}) {
       /if (${ADCharmID} && ${ADCharmID}==${Me.Pet.ID} && !${Me.Sitting}) {
-         /squelch /face id ${ADCharmID}
-         /delay 1s
+         /squelch /face nolook ${If[${MacroQuest.BuildName.Equal[emu]},fast ,]}id ${ADCharmID}
       }
    }
    /if (${Me.Class.ShortName.Equal[BRD]}) /squelch /stoptwist
@@ -502,98 +546,121 @@ Sub SitCheck
 
 
 Sub AdvPathCall
-/declare tZoneName string local
-/declare tZoneTimer timer local
-/if (${Stick.Status.Equal[ON]} && ${Stick.Distance}==5.00) /return
-/if ((${Me.State.Equal[feign]} || ${Spawn[${FollowID}].Type.Equal[corpse]}) && ${${FollowPlug}.Following} && !${${FollowPlug}.Paused}) /multiline ; /squelch /docommand /${FollowCommand} off;/return
-/if (${FollowFlag} && !${Me.State.Equal[feign]}) {
-  /if (${Me.Level}<51 && ${Me.Sneaking}&&${Group.Members}) /multiline ; /doability sneak;/delay 5
-  /if ((${Spawn[${FollowID}].Distance3D}>${FollowDistance} && ${Spawn[${FollowID}].Name.Find[${FollowName}]}) || (!${NetBots[${FollowName}].InZone} || !${Spawn[${FollowName}].ID}) && (!${Me.Mount.ID} && !${Me.Standing})) /sit off
-  /if ((${NetBots[${FollowName}].InZone} || ${Defined[${Spawn["${FollowName}"]}]}) && ${FollowID}!=${Spawn[pc ${FollowName}].ID}) /multiline ; /squelch /stick off;/varset FollowID ${Spawn[pc ${FollowName}].ID};/varset FollowFlag 1
-  /if (${Defined[CurrLoc]}) {
-    /call AdvPathPoll
-    /return
-  } else /if (${${FollowPlug}.Active} && ${${FollowPlug}.Following}) {
-    /call AdvPlugCall
-|    /return
-    /goto :tZoneCheck
-  }
-
-  /if (${Stick.Status.Equal[paused]}&&${Cast.Status.Equal[I]}&&!${Me.Casting.ID}) /stick unpause
-  /if (${Select[${Stick},off]}) {
-    /if (${FollowFlag}>=2) {
-      /if (!${Zone.Name.Equal[${ZoneName}]}) /return
-      /delay 5s ${Spawn[${FollowID}].ID}
-    }
-    /if ((${NetBots[${FollowName}].InZone} || ${Spawn[${FollowName}].ID}) && ${Spawn[${FollowName}].ID}) {
-      /if (${FollowFlag}==2) /multiline ; /varset FollowFlag 0;/return
-|      /if (${FollowFlag}==2 && ${Spawn[pc radius ${Math.Calc[${BotFollowDistance}+15]} ${FollowName}].ID}) /return
-      /if (${Target.ID}!=${FollowID}) /tar id ${FollowID}
-      /delay 8s ${Target.ID}==${FollowID}
-      /if (${Target.ID}!=${FollowID}) /multiline ; /tar id ${FollowID};/delay 5
-      /multiline ; /squelch /stick hold ${FollowDistance} id ${FollowID} uw;/varset FollowFlag 2;/return
-    }
-:tZoneCheck
-    /if (!(${NetBots[${FollowName}].InZone} || ${Spawn[${FollowName}].ID}) && ${FollowFlag}<10) {
-      /if (${Select[${NetBots[${FollowName}].State},dead]} || ${Spawn[${FollowName}'s corpse].ID} || ${FollowFlag}>=${FollowFlagZoneDelay}+20) /multiline ; /squelch /stick off;/if (${${FollowPlug}.Following}) /squelch /squelch /docommand /${FollowCommand} off;/varset FollowFlag 0;/return
-        /if (${Zone.Name.Equal[${ZoneName}]}) {
-          /if (!${Me.Mount.ID} && !${Me.Standing}) /stand
-          /bc Trying to Zone
-          /varset FollowFlag 10
-          /if (${Spawn[Magus radius 100].ID}) {
-            /varset tZoneTimer 350s
- :tMasterZone
-            /if (!${NetBots[${FollowName}].ID} && ${tZoneTimer}) /goto :tMasterZone
-            /if (!${Zone[${NetBots[${FollowName}].Zone}].ShortName.Length} || ${Me.Invis} || !${Spawn[pc ${FollowName}].ID}) /multiline ; /bc Can't zone through;/varset FollowFlag 0;/return
-            /varset tZoneName ${Zone[${NetBots[${FollowName}].Zone}].ShortName}
-           }
-        /call MBZone ${tZoneName}
-        /if (!${Macro.Return} && !${Spawn[pc ${FollowName}].ID}) /multiline ; /bc Can't zone through;/varset FollowFlag 0
+   /declare tZoneName string local
+   /declare tZoneTimer timer local
+   /if ((${Me.State.Equal[feign]} || ${Spawn[${FollowID}].Type.Equal[corpse]}) && ${AdvPath.Following} && !${AdvPath.Paused}) {
+      /call AdvPlugCall off
+      /return
+   }
+   /if (!${FollowState} || ${Me.State.Equal[feign]}) /return
+   /if (${Me.Level}<51 && ${Me.Sneaking} && ${Group.Members}) { 
+      /doability sneak
+      /delay 5
+   }
+   /if (!${Me.Mount.ID} && !${Me.Standing}) {
+      /if ((${Spawn[${FollowID}].Distance3D}>${FollowDistance} && ${Spawn[${FollowID}].Name.Find[${FollowName}]}) || !${Spawn[pc =${FollowName}].ID}) {
+         /sit off
       }
-    }
-  }
-}
+   }
+   /if (${Spawn[pc =${FollowName}].ID} && ${FollowID}!=${Spawn[pc =${FollowName}].ID}) {
+      /squelch /stick off
+      /varset FollowID ${Spawn[pc =${FollowName}].ID}
+      /varset FollowState 1
+   }
+   /call AdvPlugCall
+   /if (!${Spawn[pc =${FollowName}].ID} && ${FollowState}<10) {
+      /if (${NetBots[${FollowName}].State.Equal[dead]} || ${Spawn[${FollowName}'s corpse].ID}) {
+         /squelch /stick off
+         /call AdvPlugCall off
+         /return
+      }
+      /if (${Zone.Name.Equal[${ZoneName}]}) {
+         /if (!${Me.Mount.ID} && !${Me.Standing}) /stand
+         /bc Msg: Trying to Zone
+         /varset FollowState 10
+         /if (${Spawn[Magus radius 100].ID}) {
+            /delay 2s
+            /varset tZoneTimer 350s
+			/while (${tZoneTimer}) {
+			   /if (${NetBots[${FollowName}].ID}) /break
+			   /delay 1
+            }
+            /if (!${Zone[${NetBots[${FollowName}].Zone}].ShortName.Length} || ${Me.Invis}) { 
+               /bc Msg: Can't zone through
+               /varset FollowState 0
+               /return
+            }
+            /varset tZoneName ${Zone[${NetBots[${FollowName}].Zone}].ShortName}
+         }
+         /call MBZone ${tZoneName}
+         /if (!${Macro.Return} && !${Spawn[pc =${FollowName}].ID}) { 
+            /bc Msg: Can't zone through
+            /varset FollowState 0
+         }
+      }
+   }
 /return
 
-Sub AdvPlugCall(string Toggle)
-| Toggle : Can be [on//pause/off/stop/,ToonName]
-|/echo ${Time} : AdvPlugCall(${Toggle})
-/if (!${${FollowPlug}.Paused} && !${${FollowPlug}.Idle} && !${Defined[Toggle]} && ${Me.Moving} && ${${FollowPlug}.Following}) /return
-/if (!${${FollowPlug}.Active} || ${${FollowPlug}.Paused} && ${FollowFlag}<2 && !${ACState} && !${Defined[Toggle]}) /multiline ; /varset FollowFlag 0;/goto :aPlugCallEnd
-| Check if AdvPath getting stuck, or sitting when should be following..  Not needed with revised plugin.  (added keypress)
- /if (!${${FollowPlug}.Paused} && !${${FollowPlug}.Idle} && !${Defined[Toggle]} && ${Spawn[pc ${FollowName}].Distance}>30 && (${Me.State.Equal[sit]} || !${Me.Moving})) {
-  /if (${Me.State.Equal[sit]}) /stand
-  /delay 1s ${Me.State.Equal[STAND]}
-  /if (!${Me.Moving}) /multiline ; /squelch /docommand /${FollowCommand} off;/goto :aFollowStick
-  /return
- }
-/if (${Defined[Toggle]} && ${Toggle.Length}>1) {
-  /if (${Select[${Toggle},off,stop]}) /multiline ; /squelch /squelch /docommand /${FollowCommand} off;/varset FollowFlag 0;/goto :aPlugCallEnd
-  /if (${Select[${Toggle},off,stop]} && ${${FollowPlug}.Following}) /multiline ; /varset FollowFlag 0;/squelch /squelch /docommand /${FollowCommand} off;/goto :aPlugCallEnd
-  /if (${${FollowPlug}.Following} && ${Toggle.Find[pause]}) /multiline ;/squelch /squelch /docommand /${FollowCommand} pause;/varset FollowFlag 4;/goto :aPlugCallEnd
-  /if (${Toggle.Equal[on]} && !${${FollowPlug}.Following} && ${FollowName.Length} && ${FollowID} && ${Spawn[pc ${FollowName}].ID}) /goto :aFollowStick
-  /if (${Spawn[pc ${Toggle}].ID}) {
-    /if (${${FollowPlug}.Following} && ${Spawn[=${Toggle}].ID}!=${Spawn[pc ${${FollowPlug}.Monitor}].ID} || ${${FollowPlug}.Paused}) /squelch /squelch /docommand /${FollowCommand} off
-    |/echo /if (!${FollowID} || !${FollowName.Length} || ${FollowID}!=${Spawn[=${Toggle}].ID}) /multiline ; /varset FollowID ${Spawn[=${Toggle}].ID};/varset FollowName ${Spawn[=${Toggle}].CleanName}
-    /if (!${FollowID} || !${FollowName.Length} || ${FollowID}!=${Spawn[=${Toggle}].ID}) /multiline ; /varset FollowID ${Spawn[=${Toggle}].ID};/varset FollowName ${Spawn[=${Toggle}].CleanName}
-    /goto :aFollowStick
-  }
-}
-/if (${FollowFlag} && ${${FollowPlug}.Paused}) /return
-/if (${${FollowPlug}.Following} && !${ACState} && !${Toggle.Length} && ${FollowFlag}) /return
-/if (${${FollowPlug}.Paused} && ${ACState} && ${Spawn[pc ${TankName}].Distance}<=${ACLeash}+20) /return
-/if (${FollowName.Length} && ${FollowID} && !${ACState} && !${${FollowPlug}.Following} && !${${FollowPlug}.Paused}) /goto :aFollowStick
-/if (${${FollowPlug}.Following} && ${ACState} && !${${FollowPlug}.Paused}) /multiline ; /squelch /squelch /docommand /${FollowCommand} pause;/goto :aPlugCallEnd
- /if (${${FollowPlug}.Paused} && ${FollowFlag}==1 && !${ACState}) /squelch /squelch /docommand /${FollowCommand} unpause;/goto :aPlugCallEnd
 
-|/return
-:aFollowStick
-  /if (!${Spawn[pc ${FollowName}].ID} || !${FollowID} && !${FollowName.Length} || ${FollowName.Equal[${Me.CleanName}]} && (!${FollowID} || ${FollowID}==${Me.ID})) /return
-  /if (${Spawn[pc ${FollowName}].ID}!=${FollowID} && ${FollowName.NotEqual[${Me.CleanName}]}) /varset FollowID ${Spawn[pc ${FollowName}].ID}
-  /squelch /target id ${FollowID}
-  /delay 1s ${Target.ID}==${FollowID}
-  /if (${Me.Casting.ID} && ${Me.Class.ShortName.NotEqual[brd]}) /delay 1s !${Me.Casting.ID}
- /squelch /squelch /docommand /${FollowCommand} on
-  /varset FollowFlag 1
-:aPlugCallEnd
+Sub AdvPlugCall(string Toggle,string Close)
+| Toggle : Can be [off/stop/pause/ToonName, or no entry when called to 'true-up']
+| Close  : Can be [close] for following closely (5)
+   /declare tID int local ${FollowID}
+   /declare tName string local ${FollowName}
+   /if (!${Toggle.Length}) {
+      /if (${AdvPath.Following}) {  
+         /if (!${AdvPath.Paused}) /return
+         /if (!${ACMATarget} && ${FollowName.Length} && ${Spawn[pc =${FollowName}].ID} && !${CampStatus}  && !${Spawn[${Me}'s corpse'].ID} && !${Melee.Combat} && !${Me.Combat}) {
+            /squelch /afollow unpause
+            /varset FollowState 1
+            /return
+         }
+      }
+| AdvPath sometimes stops itself (zoning, getting summoned, etc.), so we may need to start it again down below
+      /if (!${FollowName.Length} || !${FollowID}) /return
+   } else /if (${Select[${Toggle},off,stop]}) { 
+      /squelch /afollow off
+      /varset FollowState 0
+      /varset FollowID 0
+      /varset FollowName
+      /return
+   } else /if (${Toggle.Equal[pause]}) {
+      /if (${AdvPath.Following} && !${AdvPath.Paused}) { 
+         /squelch /afollow pause
+         /varset FollowState 4
+      }
+      /return
+   } else /if (${Spawn[pc =${Toggle}].ID}) {
+      /if (${AdvPath.Following} && ${Spawn[pc =${Toggle}].ID}!=${Spawn[pc =${AdvPath.Monitor}].ID} || ${AdvPath.Paused}) {
+         /squelch /afollow off
+         /varset FollowState 0
+         /varset FollowID 0
+         /varset FollowName
+      }
+      /if (!${FollowID} || !${FollowName.Length} || ${FollowID}!=${Spawn[pc =${Toggle}].ID}) {
+         /varset tID ${Spawn[pc =${Toggle}].ID}
+         /varset tName ${Spawn[pc =${Toggle}].CleanName}
+      }
+   } else {
+|/bc what am i doing here? Toggle = ${Toggle}
+      /return
+   }
+   
+| Check/set follow
+   /if (!${Spawn[pc =${tName}].ID} || !${tID} && !${tName.Length} || ${tName.Equal[${Me.CleanName}]} && (!${tID} || ${tID}==${Me.ID})) /return
+   /if (${Spawn[pc =${tName}].ID}!=${tID} && ${tName.NotEqual[${Me.CleanName}]}) {
+      /varset tID ${Spawn[pc =${tName}].ID}
+   }
+   /if (!${tID}) /return  
+   /if (${Me.Casting.ID} && ${Me.Class.ShortName.NotEqual[brd]}) {
+      /delay 10s !${Me.Casting.ID}
+   }
+   /if (${Stick.Status.Equal[on]}) /squelch /stick off
+   /squelch /afollow on spawn ${tID} ${If[${Close.Equal[close]},5,${FollowDistance}]}
+   /varset FollowState 1
+   /varset FollowID ${tID}
+   /varset FollowName ${Spawn[${tID}].CleanName}
+   /if (${Me.Pet.ID}) {
+      /if (${Pet.Stance.NotEqual[follow]}) /pet follow
+   }
 /return

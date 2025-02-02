@@ -1,7 +1,6 @@
 |
 | Modbot.mac
 |
-| #define echo mqlog
 #turbo 100
 #warning
 
@@ -15,60 +14,69 @@
 #include modpull.inc
 #include modloot.inc
 #include modmove.inc
-#include modextra.inc
+#include Mod_alerts.inc
 
 | Uncomment these if you'd like commands to work via group and chat channels.
- #chat group
+| #chat group
 | #chat chat
- #chat tell
+#chat tell
 
-Sub Main(INI)
+Sub Main(MBParm)
    /delay 2 ${Macro.Name.Equal[modbot.mac]}
    /declare MBCommon string outer MBCommon.ini
    /declare MBDebug bool outer FALSE
-   /declare a int local
-   /declare b int local
-   /declare tDist string local
-   /declare MakeCampR int local
-   /declare MakeCampRX int local
-   /declare MakeCampRY int local
-   /declare PetShrinkTries int outer
-   /declare SelfShrinkTries int outer
+   /declare MBNewIni bool outer FALSE
    /declare IniFile string outer
-   /declare AAIniFile string outer AA_${Me.Name}.ini
+   /declare AAIniFile string outer
+   /declare AAIniSection string outer
+   /declare CZoneID int outer ${Zone.ID}
+   /declare PipeChar string outer |
+   /declare MBVersion string local 20230912${PipeChar}ModBot v6.00
+   /declare IniSuffix string local
+  
+
+
    /call LoadINIVar Settings IniLocation "* Path to MB_Name.ini file.  example - MBIni/ sets your .ini files in macros/MBIni/MB_Name.ini" IniLocation "${MBCommon}" string
    /if (${IniLocation.Left[1].Equal[*]}) /varset IniLocation
-   /if (${INI.Length}) {
-      /varset IniFile ${IniLocation}MB_${Me.Name}_${INI}
+   /if (${MBParm.Length}) {
+      /varset IniSuffix ${Me.Name}_${MBParm}
    } else /if (${Me.Shrouded}) {
-      /if (${Select[${Me.Race.Name.Arg[1]},wood,high,dark,dwarf,barbarian,ogre,gnome,human,troll,froglok,halfling,erudite]}) {
-         /varset IniFile ${IniLocation}MB_${Me.Level}_${Me.Class}
+      /if (${Select[${Me.Race.Name.Arg[1]},wood,high,dark,dwarf,barbarian,ogre,gnome,human,troll,froglok,halfling,erudite,vah]}) {
+         /varset IniSuffix ${Me.Level}_${Me.Class}
       } else {
-         /varset IniFile ${IniLocation}MB_${Me.Race}_${Me.Class}
+         /varset IniSuffix ${Me.Race}_${Me.Class}
       }
    } else {
-      /varset IniFile ${IniLocation}MB_${Me.Name}
+      /varset IniSuffix ${Me.Name}
    }
-   /if (!${IniFile.Find[.ini]}) /varset IniFile ${IniFile}.ini
+   /varset IniFile ${IniLocation}MB_${IniSuffix}.ini
+
    /varset AAIniFile ${IniLocation}AA_${Me.Name}.ini
+   /varset AAIniSection ${If[${Me.Shrouded},${Me.Race}_${Me.Class},AAtoBuy]}
    
+   /if (!${Ini["${IniFile}"].Length}) {
+      /echo Initializing NEW ModBot ini file: ${IniFile}
+      /varset MBNewIni TRUE
+   } else /if (${MBDebug}) {
+      /echo Using ModBot ini file: ${IniFile}
+   }
+   
+|  /call LoadINIVar Settings LastMBVersion "00000000" LastMBVersion "${IniFile}" string
    /call LoadINIVar Settings TimeStampOnEcho FALSE TimeStampOnEcho "${IniFile}" bool
    /echo
    /echo ${If[${TimeStampOnEcho},[${Time}] ,]}ModBot is initializing...
 
    /call Startup
-      
-   /call SetupAdvLootVars 
-   /call AAInit ${If[${Me.Shrouded},${Me.Race}_${Me.Class}, ]}
+   /call AAInit
+
    /call LoadACINIVals
    /call LoadAHINIVals
    /call LoadADINIVals
    /call LoadABINIVals
    /call LoadAEINIVals
+   /call LoadAQINIVals
    /call LoadAPINIVals
    /call LoadAMINIVals
-   /call LoadAQINIVals
-
    /if (${MBDebug}) { 
       /if (!${Defined[AHGem]}) /echo ${If[${TimeStampOnEcho},[${Time}] ,]}I don't see any Heals in your ini
       /if (!${Defined[ABGem]}) /echo ${If[${TimeStampOnEcho},[${Time}] ,]}I don't see any Buffs in your ini
@@ -76,24 +84,38 @@ Sub Main(INI)
       /if (!${Defined[AEGem]}) /echo ${If[${TimeStampOnEcho},[${Time}] ,]}I don't see any Events in your ini
       /if (!${Defined[AQGem]}) /echo ${If[${TimeStampOnEcho},[${Time}] ,]}I don't see any Cures in your ini
    }
-   
-| EQBC channels Join specific classes, then group channels
-/declare chanList string local ${Me.Class.ShortName}
-/if (${Select[${Me.Class.ShortName},shm,clr,dru]}) /varset chanList ${chanList} healers
-/if (${Select[${Me.Class.ShortName},rng,bst,brd,shd,pal]}) /varset chanList ${chanList} hybrid
-/if (${Select[${Me.Class.ShortName},mag,wiz,enc,nec]}) /varset chanList ${chanList} casters
-/if (${Select[${Me.Class.ShortName},war,rog,mnk,brz,ber]}) /varset chanList ${chanList} melee
-/if (${Select[${Me.Class.ShortName},war,shd,pal]}) /varset chanList ${chanList} tanks
-/if (!${Select[${Ini["${IniFile}","Settings","EQBCChannels",NOTFOUND]},NOTFOUND,NULL]}) /varset chanList ${chanList} ${Ini["${IniFile}","Settings","EQBCChannels"]}
-/bccmd channels ${chanList}
+   /call SetupAdvLootVars
 
 | Create Empty Defense script, if not exists
    /call MBScript Defense Startup
    /call MBScript MBStartup
+
+| Setup Default Ports
+   /call LoadINIVar Ports Gate ${If[${Me.Book[${Me.Book[Gate]}].ID},""Gate${PipeChar}${Me.NumGems}"","" ""]} Gate "${IniFile}" string
+   /call LoadINIVar Ports Evac ${If[${Me.AltAbility[Exodus].ID},""Exodus${PipeChar}alt"","" ""]} Evac "${IniFile}" string
    
+|Set/Clear indicator for Pet Affinity status. Append to current contents (in case someone else is using this field?)
+   /netnote ${If[${Me.AltAbility[Pet Affinity]},${If[${NetBots[${Me.CleanName}].Note.Find[MBPetAffinity]},${NetBots[${Me.CleanName}].Note},${If[${NetBots[${Me.CleanName}].Note.Length},${NetBots[${Me.CleanName}].Note} ,]}MBPetAffinity]},${If[${NetBots[${Me.CleanName}].Note.Find[MBPetAffinity]},${NetBots[${Me.CleanName}].Note.Replace[MBPetAffinity,]},${NetBots[${Me.CleanName}].Note}]}]}
+
+|Load Zone-Restricted Spell Info for this zone
+   /call LoadRestrictedSpells
    
+| EQBC channels Join specific classes, then group channels
+   /if (${JoinMBChannels}) {
+      /declare chanList string local ${Me.Class.ShortName}
+      /if (${Select[${Me.Class.ShortName},shm,clr,dru]}) /varset chanList ${chanList} healers
+      /if (${Select[${Me.Class.ShortName},rng,bst,brd,shd,pal]}) /varset chanList ${chanList} hybrid
+      /if (${Select[${Me.Class.ShortName},mag,wiz,enc,nec]}) /varset chanList ${chanList} casters
+      /if (${Select[${Me.Class.ShortName},war,rog,mnk,ber]}) /varset chanList ${chanList} melee
+      /if (${Select[${Me.Class.ShortName},war,shd,pal]}) /varset chanList ${chanList} tanks
+      /if (!${Select[${Ini["${IniFile}","Settings","EQBCChannels",NOTFOUND]},NOTFOUND,NULL]}) /varset chanList ${chanList} ${Ini["${IniFile}","Settings","EQBCChannels"]}
+      /bccmd channels ${chanList}
+   }
+   
+   /call AdvPlugCall off
+   /squelch /target clear
    /doevents flush
-   /if (${Window[RespawnWnd].Open} || ${Me.State.Equal[HOVER]}) {
+   /if (${Window[RespawnWnd].Open} || ${Select[${Me.State},HOVER,DEAD]}) {
       /call Event_Slain
       /call Event_DelayOnZone
    }
@@ -101,40 +123,56 @@ Sub Main(INI)
       /ini "${IniFile}" "Settings" "DeathSlot" "FALSE"
       /bc Msg: Death from previous run detected. Please Look for my Corpse. Resuming ModBot operation.
    }
-   /if (${DoPull}) /mb makecamp
-   /if (${Window[SpellBookWnd].Open}) /book
+   /if (${DoPull}) /call Command_MAKECAMP
+   /if (${Window[SpellBookWnd].Open}) /book close
+   /if (${Me.Pet.ID}) /pet hold on
    /if (${Me.Shrouded} && ${DoAA}) /call AAPicker 
    /if (${Ini["${IniFile}",Script-Startup,Commands]}) /call MBScript Startup
 
-   /echo ${If[${TimeStampOnEcho},[${Time}] ,]}EmuModBot v5.22 has started!
+   /echo ${If[${TimeStampOnEcho},[${Time}] ,]}${MBVersion.Arg[2,${PipeChar}]} has started!
    /echo
-   /if (${${FollowPlug}.Following}) /call AdvPlugCall off
+   /echo ${If[${TimeStampOnEcho},[${Time}] ,]}Welcome to ${Zone.Name} (${ZoneTypes.Arg[${Math.Calc[${Zone.Type}+1]},,]})
+
+   /declare MakeCampR int local
+   /declare MakeCampRX int local
+   /declare MakeCampRY int local
+   /declare tTargetID int local
+   /declare tCount int local
+   /declare DrinkItem string local Short Beer
+   /declare DrinkTimer timer local 10s
+   /declare dTime string outer 10m 
+   /declare drpNum int local
+   /declare drsNum int local
+
 :MainLoop
    /delay 1
-   /if (${FollowName.Length} && ${Spawn[${FollowName}].ID} && !${CampStatus}  && !${Spawn[${Me}'s corpse'].ID}) {
-  |/docommand ${If[${Defined[CurrLoc]},/call FollowFunction "${FollowName}",/varset FollowFlag 1]}
-  |/docommand ${If[${${FollowPlug}.Active} && ${AdvPlug},/call AdvPlugCall "${FollowName}",/varset FollowFlag 1]}
-  /if (${DoLoot} && ${Target.Type.Equal[corpse]}) /goto :tContNoFollow
-  /if (!${${FollowPlug}.Paused} && ${Spawn[${FollowName}].Distance} > 35 && !${Me.Moving} && !${Melee.Combat}) {
-    /if (${Stick.Status.Equal[on]}) /stick off
-    /target id ${Spawn[${FollowName}].ID}
-    /delay 5 ${Target.ID}==${Spawn[${FollowName}].ID}
-    /if (!${${FollowPlug}.Following}) {
-      /docommand /${FollowCommand}
-    }
-  }
-  /if (${${FollowPlug}.Paused}) /docommand /${FollowCommand} unpause
-:tContNoFollow
-}
-
    /if (!${Zone.Name.Equal[${ZoneName}]} || (!${Window[RespawnWnd].Open} && !${Me.ID})) {
       /call Event_DelayOnZone
    }
    /if (${Select[${Me.State},HOVER,DEAD]}) {
-      /call Event_Slain 
+      /call Event_Slain
+   }
+   /doevents
+   |/if (!${Me.Combat} && ${AdvPath.Following} && !${AdvPath.Paused} && !${Me.Moving} && ${FollowName.Length} > 1 && ${Spawn[id ${FollowID}].Distance} > ${FollowDistance}) {
+   |   /target id ${FollowID}
+   |   /delay 1s ${Target.ID}==${FollowID}
+   |   /squelch /afollow on
+   |}
+   /if (!${DrinkTimer} && ${FindItemCount[=${DrinkItem}]} && ${Me.Skill[Alcohol Tolserance]}<375) {
+      /if (!${Window[pack${Math.Calc[${FindItem[=${DrinkItem}].ItemSlot}-22]}].Open}) {
+         /keypress I
+         /delay 1s ${Window[InventoryWnd].Open}
+         /itemnotify pack${Math.Calc[${FindItem[=${DrinkItem}].ItemSlot}-22]} rightmouseup
+         /delay 1s ${Window[pack${Math.Calc[${FindItem[=${DrinkItem}].ItemSlot}-22]}].Open}
+         /keypress i
+      }
+      /varset drpNum ${Math.Calc[${Me.Inventory[${FindItem[=${DrinkItem}].ItemSlot}].ItemSlot}-22].Int}
+      /varset drsNum ${Math.Calc[${FindItem[=${DrinkItem}].ItemSlot2} + 1].Int}
+      |/echo /itemnotify in pack${drpNum} ${drsNum} rightmouseup
+      /itemnotify in pack${drpNum} ${drsNum} rightmouseup
+      /varset DrinkTimer ${dTime}
    }
    /if (!${MBPause}) {
-      /doevents
       /call SetTank
       /call SetPuller
       /varset SpellWasCast FALSE
@@ -145,10 +183,17 @@ Sub Main(INI)
       /if (${DoMelee}) {
          /if (${ACState} && (!${Spawn[${ACMATarget}].ID} || ${Spawn[${ACMATarget}].Type.Equal[corpse]} || ${Spawn[${ACMATarget}].Feigning})) {
             /call AdvCombat
-         } else /if (${SpawnCount[npc radius ${ACLeash} zradius ${ZRadius}]}) {
-            /call AdvCombat
          } else /if (${APTargetID} && !${Spawn[${ACMATarget}].ID}) {
-            /call AdvCombat
+            /call AdvCombat			
+         } else {
+            /if (${Me.Pet.ID} && ${Me.Pet.ID}==${TankID}) {
+               /varset tCount ${SpawnCount[npc radius ${ACLeash} loc ${Pet.X} ${Pet.Y} ${Pet.Z} zradius ${ZRadius} noalert ${AlertList}]}
+            } else {
+               /varset tCount ${SpawnCount[npc radius ${ACLeash} zradius ${ZRadius} noalert ${AlertList}]}
+            }
+            /if (${tCount}) {
+               /call AdvCombat
+            }
          }
       }
       /if (${DoHeals} && ${AHCount}) /call AHHealCheck
@@ -163,64 +208,48 @@ Sub Main(INI)
          /varset SpellWasCast FALSE
       }
    }
-   /if (${DoMelee}) {
-      /if (!${Spawn[${NetBots[${TankName}].TargetID}].Type.Equal[pc]} && ${ACState}) {
-         /call AdvCombat
-      } else /if (${Spawn[${NetBots[${TankName}].TargetID}].Type.Equal[pc]} && !${ACState}) {
-         /call AdvCombat
-      } else /if (${OffTank}) {
-         /if (${ADMobCount}>1 && ${Target.ID}==${NetBots[${TankName}].TargetID}) /call AdvCombat
-      }
-   }
-   /if (!${Melee.Combat} && ${Select[${Me.CombatState},COOLDOWN,RESTING]}) {
-      /if (!${Spawn[${NetBots[${TankName}].TargetID}].Type.Equal[npc]} && ${ACState} || ${Spawn[${NetBots[${TankName}].TargetID}].Type.Equal[npc]} && !${ACState}) /call AdvCombat
-   }
    /if (!${ACState} && !${Melee.Combat}) {
-      /if (${Me.Class.ShortName.Equal[BRD]}) {
-         /if (!${MBPause} && ${DoBuffs} && ${BardRestGems.Length} && !${Me.State.Equal[sit]} && (${Twist.List.NotEqual[${BardRestGems} ]} || !${Twist})) {  
-|        /if (!${MBPause} && ${DoBuffs} && ${BardRestGems.Length} && (${Twist.List.NotEqual[${BardRestGems} ]} || !${Twist})) {  	
-|           /if (${Me.State.Equal[sit]}) /stand
+      /if (${ADMobCount}> 0 && ${DoMelee} && !${ACState} && ${NetBots[${TankName}].TargetID} && ${NetBots[${TankName}].TargetHP} < ${ACAssistPct} && !${Me.Name.Equal[${TankName}]}) {
+         /echo Assisting Tank
+         /call AdvCombat
+         
+      }
+      /call AdvPathCall
+      /if (${Me.Class.ShortName.Equal[BRD]} && !${MBPause}) {
+         /if (${DoBuffs} && ${BardRestGems.Length} && !${Me.State.Equal[sit]} && (${Twist.List.NotEqual[${BardRestGems} ]} || !${Twist})) {  
             /squelch /stoptwist
             /squelch /twist ${BardRestGems}
             /if (${InfoMsgLevel}) {
                /echo ${If[${TimeStampOnEcho},[${Time}] ,]}Msg: Rest gems
             }
          } else {
-            /if (${Twist} && !${BardRestGems.Length} && !${MBPause} && !${Me.State.Equal[sit]}) /twist off
-|           /if (${Twist} && !${BardRestGems.Length} && !${MBPause}) /twist off
+            /if (${Twist} && !${BardRestGems.Length} && !${Me.State.Equal[sit]}) /squelch /twist off
          }
       }  
       /if (!${Me.Casting.ID} || ${Me.Class.ShortName.Equal[BRD]}) {
-         /call AdvPathCall
          /doevents
          /if (${DoLoot}) {
-            /if (!${MBPause} && !${Me.Moving}) {
-               /if (${LootMobs} && !${ALDontLootTimer} && (!${ADMobFound} || ${MobsTooClose}<=5)) {
-                  /if (${SpawnCount[corpse radius ${CorpseRadius} zradius ${ZRadius} noalert 25]}) {
-                     /call LootMobs 
-                     /if (${Corpse.Open}) /nomodkey /notify LootWnd LW_DoneButton leftmouseup
-                  }
-               }
+            /call LootMobs
+            /if (!${LootCleanupTimer}) {
+               /call LootCleanUp
             }
          }
       }
    }
-
    /if (${QueueCount}) {
       /if (${DoBuffs}) /call DoBuffEvents
    }
    /if (${DoEvents} && ${AECount}) /call AEEventCheck
    /doevents
    /if (${MBPause}) {
-      /if (${FollowFlag} && ${Me.Mount.ID}) /dismount
+      /if (${FollowState} && ${Me.Mount.ID}) /dismount
    } else {
       /if (${DoBuffBot}) /goto :MainLoop
       /if (${DoHeals} && ${AHCount} && !${AHCheckTimer}) /call AHHealCheck
    }
    /if (${Stick.Status.Equal[PAUSED]}) {
-      /if (${DoMelee} && ${ACState} && ${Cast.Status.Equal[I]}) /squelch /stick unpause
+      /if (${DoMelee} && ${ACState} && (${Cast.Status.Equal[I]} || ${Me.Class.ShortName.Equal[BRD]})) /squelch /stick unpause
    }
-   /if (${FollowName.Length} && ${Spawn[${FollowName}].Distance}> 20) /call AdvPlugCall ${FollowName}
    /if (!${MBPause} && !${MiscCheckTimer} && !${APPullDelay}) {
       /varset MiscCheckTimer 1s
       /if (${DoStuckGems}) {
@@ -229,73 +258,78 @@ Sub Main(INI)
       /if (${MakeCamp.Status.Equal[on]} && ${CampStatus}==2 && ${Me.Moving} && !${ADMobFound}) {
          /nomodkey /keypress back
          /varset CampStatus 1
-      }		
+      }        
       /if (!${Me.Moving}) {
-	     /call ADSpawnCheck
-	  } else /if (${SpawnCount[npc los radius ${ACLeash} zradius ${ZRadius}]}) {
-	     /call ADSpawnCheck
-	  }
+         /call ADSpawnCheck
+      } else /if (${SpawnCount[npc los radius ${Radius} zradius ${ZRadius} noalert ${AlertList}]}) {
+         /call ADSpawnCheck
+      }
+      /if (${ADMobCount}> 0 && ${DoMelee} && !${ACState} && ${NetBots[${TankName}].TargetID} && ${NetBots[${TankName}].TargetHP} < ${ACAssistPct} && !${Me.Name.Equal[${TankName}]}) {
+         /echo Assisting Tank
+         /call AdvCombat
+         
+      }
       /if (!${ACState} && !${Melee.Combat} && !${Me.Moving} && (${Me.Class.ShortName.Equal[BRD]} || !${Me.Casting.ID})) {
-         /if (${MakeCamp.Status.Equal[on]} && ${CampStatus}==1 && !${Me.State.Equal[feign]} && !${FollowFlag}) {
+         /if (${MakeCamp.Status.Equal[on]} && ${CampStatus}==1 && !${Me.State.Equal[feign]} && !${FollowState}) {
             /varset CampStatus 2
             /if (${ACManaPct}!=101 || ${MakeCamp.CampDist}>2) {
                /if (${Me.Sitting}) {
                   /if (!${Me.Mount.ID}) /sit off
-			   }
-               /if (${MakeCamp.CampDist}>${MakeCamp.CampRadius}) {
-			      /squelch /makecamp return
-			   }
-               /delay 1s !${Me.Moving}			   
-               /if (${Math.Distance[${Me.Y},${Me.X}:${MakeCampY},${MakeCampX}]}>10) {
-    		      /call MBMoveTo ${MakeCampY} ${MakeCampX} 0 20
                }
-			   /delay 1s !${Me.Moving}
+               /if (${MakeCamp.CampDist}>${MakeCamp.CampRadius}) {
+                  /squelch /makecamp return
+               }
+               /delay 1s !${Me.Moving}               
+               /if (${Math.Distance[${Me.Y},${Me.X}:${MakeCampY},${MakeCampX}]}>10) {
+                  /call MBMoveTo ${MakeCampY} ${MakeCampX} 0 20
+               }
+               /delay 1s !${Me.Moving}
 | Try to randomize our location within our CampRadius, but not more than 10
                /varcalc MakeCampR ${Math.Rand[1,${Math.Calc[${If[${MakeCamp.CampRadius}<10,${MakeCamp.CampRadius},10]}-1]}]}
-			   /varcalc MakeCampRY ${MakeCampY}${If[${Math.Rand[1]},-,+]}${MakeCampR}
+               /varcalc MakeCampRY ${MakeCampY}${If[${Math.Rand[1]},-,+]}${MakeCampR}
                /varcalc MakeCampR ${Math.Rand[1,${Math.Sqrt[${Math.Calc[(${If[${MakeCamp.CampRadius}<10,${MakeCamp.CampRadius},10]}^2)-(${MakeCampR}^2)]}]}]}
-			   /varcalc MakeCampRX ${MakeCampX}${If[${Math.Rand[1]},-,+]}${MakeCampR}			   
+               /varcalc MakeCampRX ${MakeCampX}${If[${Math.Rand[1]},-,+]}${MakeCampR}               
                /if (${Math.Distance[${Me.Y},${Me.X}:${MakeCampRY},${MakeCampRX}]}<10) {
 | Is this point within the camp radius? If not, we should't move there so let's not bother.
-			      /if (${Math.Distance[${MakeCampY},${MakeCampX}:${MakeCampRY},${MakeCampRX}]}<${MakeCamp.CampRadius}) {
-			         /call MBMoveTo ${MakeCampRY} ${MakeCampRX} 0 20
-				  }
-			   }
-			   /delay 1s !${Me.Moving}
-               /squelch /face Heading ${Math.Calc[${MakeCampD}${If[${Math.Rand[1]},-,+]}${Math.Rand[30]}]}
+                  /if (${Math.Distance[${MakeCampY},${MakeCampX}:${MakeCampRY},${MakeCampRX}]}<${MakeCamp.CampRadius}) {
+                     /call MBMoveTo ${MakeCampRY} ${MakeCampRX} 0 20
+                  }
+               }
+               /delay 1s !${Me.Moving}
+               /if (${UseHeadings}) {
+                  /squelch /face nolook ${If[${MacroQuest.BuildName.Equal[emu]},fast ,]}heading ${Math.Calc[${MakeCampD}${If[${Math.Rand[1]},-,+]}${Math.Rand[30]}]}
+               }
             }
          }
          /if (${DoPull}) {
             /if (${APAggro} && (!${APTargetID} || !${Spawn[${APTargetID}].ID})) /varset APAggro 0
          }
          /if (!${DoBuffs} && ${Me.Class.ShortName.Equal[BRD]}) {
-            /if (${Twist}) /stoptwist
+            /if (${Twist}) /squelch /stoptwist
          }
-         /if (${FollowFlag}>=10 && ${FollowFlagZoneDelay}) /varcalc FollowFlag ${FollowFlag}+1
-|        /if (${Window[ConfirmationDialogBox].Open}) /notify ConfirmationDialogBox Yes_Button leftmouseup
          /if (${Window[AdventureRequestWnd].Open}) /nomodkey /keypress esc
          /if (${DoAA} && !${AACheckTimer}) /call AAPicker
       }
       /if (${DoForage}) {
-         /if (${Me.AbilityReady[forage]}) {
-            /if (!${Window[InventoryWindow].Open}) {		 
-               /if (!${Me.Mount.ID} && !${Me.Standing}) /stand
-               /delay 2
-               /doability forage
-               /delay 1s
-            }
+         /call ForageStuff
+      }
+      /if (${DoFW}) {
+         /if (${NeedFoodTimer} && ${SumFood.Length}>2) {
+            /call SummonFW Food
+         } else /if (${NeedDrinkTimer} && ${SumDrink.Length}>2) {
+            /call SummonFW Drink
          }
       }
       /if (${Cursor.ID}) {
-	     /call ClearCursor
-	  }
-      /if (${DoSit} && !${Melee.GotAggro}) /call SitCheck
+         /call ClearCursor
+      }
+      /if (${DoSit} && !${Melee.GotAggro} && !${Me.Moving}) /call SitCheck
    }
    /if (${DoCombines}) {
       /if (!${Cursor.ID}) {
          /if (${Window[TradeSkillWnd].Child[CombineButton].Enabled}) {
-            /notify TradeskillWnd CombineButton leftmouseup
-		 }
+            /nomodkey /notify TradeskillWnd CombineButton leftmouseup
+         }
       } else {
          /call ClearCursor
       }
@@ -303,19 +337,24 @@ Sub Main(INI)
    /if (${Window[TradeWnd].Open}) {
       /if (!${Window[TradeWnd].MyTradeReady} && !${Cursor.ID} && (${MasterList.Find[${Window[TradeWnd].Child[TRDW_HisName].Text}]} || ${NetBots.Client.Find[${Window[TradeWnd].Child[TRDW_HisName].Text}]})) {
          /delay 2
-         /notify TradeWnd TRDW_Trade_Button leftmouseup
-	  }
+         /nomodkey /notify TradeWnd TRDW_Trade_Button leftmouseup
+      }
    }
    /if (${Window[MerchantWnd].Open}) {
       /if (${CurMerchant}==0 || ${CurMerchant}!=${Spawn[merchant ${Window[MerchantWnd].Child[MW_MerchantName].Text}].ID}) /call SearchVendor
    }
+   |/if (${Select[${Me.Class.ShortName},rog,brd]} && ${Me.AbilityReady[Sense Traps]}) /doability "Sense Traps"
    /goto :MainLoop
 :OnExit
    /call MainExit
 /return
 
 Sub MainExit
-   /if (${Me.Class.ShortName.Equal[brd]}) /twist off
-   /if (${${FollowPlug}.Following}) /docommand /${FollowCommand} off
+   /if (${Me.Class.ShortName.Equal[brd]}) /squelch /twist clear
+   /squelch /stick off
+   /squelch /afollow off
+   /squelch /makecamp off
+| Clear indicator for Pet Affinity status. Preserve other contents (in case someone else is using this field?)
+   /netnote ${If[${NetBots[${Me.CleanName}].Note.Find[ MBPetAffinity]},${NetBots[${Me.CleanName}].Note.Replace[ MBPetAffinity,]},${If[${NetBots[${Me.CleanName}].Note.Find[MBPetAffinity]},${NetBots[${Me.CleanName}].Note.Replace[MBPetAffinity,]},${NetBots[${Me.CleanName}].Note}]}]}
    /endmacro
 /return

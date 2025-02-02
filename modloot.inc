@@ -1,235 +1,574 @@
 
-#Event ALCantLoot         "#*#may not loot this corpse#*#"
-#Event ALCantLoot         "#*#cannot loot this Lore Item#*#"
+#Event CantLoot "You may not loot this corpse#*#"
+#Event Forage "You have#*#scrounged up#*#"
+|#Event InventoryFull "#*#Your inventory appears full!#*#"
+|#Event InventoryFull "#*#There are no open slots for the held item in your inventory.#*#"
+|#Event Lore "#*#You cannot loot this Lore Item.#*#"
+|#Event UnwantedLoot "#*#No one was interested in the#*#item(s): #1#. These items#*#"
+|#Event LockedLoot "#*#These item(s) are locked#*#"
 
 Sub SetupAdvLootVars
- /declare x int local
- /declare ALDontLoot        int    outer
- /declare CorpseRotTimer    timer  outer
- /declare CorpseList        string outer
- /declare ALDontLootTimer  timer outer
- /declare RelootTimer timer outer
- /call LoadINIVar Settings LootIni "Loot.ini" LootIni "${MBCommon}" string
- /if (!${LootIni.Find[/]} && !${LootIni.Find[\]}) /varset LootIni ${IniLocation}${LootIni}
- /call LoadINIVar Settings LootMobs TRUE LootMobs "${LootIni}" bool
- /call LoadINIVar Settings CorpseRadius 100 CorpseRadius "${LootIni}" int
- /call LoadINIVar Settings MobsTooClose 50 MobsTooClose "${LootIni}" int
- /call LoadINIVar Settings CorpseRotTime 440s CorpseRotTime "${LootIni}" string
- /call LoadINIVar Settings ReportLoot FALSE ReportLoot "${LootIni}" bool
- /call LoadINIVar Settings LootChannel bc LootChannel "${LootIni}" string
- /call LoadINIVar Settings Category "Tradeskill,Spellscroll" Category "${LootIni}" string
- /call LoadINIVar Settings LootChannel bc LootChannel "${LootIni}" string
- /call LoadINIVar Settings QuestOnly "FALSE" QuestOnly "${LootIni}" bool
- /for x 1 to ${Math.Calc[${Category.Count[,]}+1]}
-   /call LoadINIVar Settings ${Category.Arg[${x},,]} "Toon1Name,Toon2Name" ${Category.Arg[${x},,]} "${LootIni}" string
-|  /echo ${If[${TimeStampOnEcho},[${Time}] ,]}Category arg ${x} : ${Category.Arg[${x},,]}
- /next x
- /call LoadINIVar Settings KeepScript " " KeepScript "${LootIni}" string
- /squelch /alert clear 25
-/return
-
-
-sub CloseCorpse
- /declare corpselock timer local 10s
- /nomodkey /notify LootWnd LW_DoneButton leftmouseup
- /delay 5 !${Corpse.Open}	
- /if (!${corpselock}) /nomodkey /keypress esc
- /if (${Corpse.Open}) {
-:clickdoneffs
-   /nomodkey /notify LootWnd LW_DoneButton leftmouseup
-   /delay 5 !${Corpse.Open}
-   /if (${Corpse.Open}) /goto :clickdoneffs
- }
- /if (${Corpse.Open}) /nomodkey /keypress esc
-/return
-
-
-Sub LootCorpse
- /echo ${If[${TimeStampOnEcho},[${Time}] ,]}LootCorpse
- /declare i int local
- /declare y int local
- /declare LootList    string local
- /declare CurrentItem string local
- /declare CurrIni     string local
- /declare x int local 0
- /declare z int local 0
- /declare corpselock timer local
- /declare CanLoot bool local FALSE
- /declare loottotal  int    local
-:ALauto_inv
- /if (${Cursor.ID}) /call ClearCursor
- /if (!${Target.ID}) /return
- /doevents flush ALCantLoot
- /loot
- /delay 1s ${Corpse.Open}
- /doevents ALCantLoot
- /if (${Target.ID} && ${Target.ID}==${ALDontLoot} && ${Spawn[${ALDontLoot}].ID} && ${ALDontLoot}) {
-   /squelch /alert add 25 id ${ALDontLoot}
-   /call CloseCorpse
-   /return
- }
- /if (!${Corpse.Open} && ${Target.ID}!=${ALDontLoot} && ${Target.ID}) /goto :ALauto_inv
- /delay 3s ${Corpse.Items} || ${Target.ID}==${ALDontLoot}
- /if (${Corpse.Open} && ${Corpse.Items}) {
-   /varset corpselock 5s
-:ALlootlag
-   /varset loottotal ${Corpse.Items}
-   /delay 1s ${loottotal}!=${Corpse.Items}
-   /if (${loottotal}!=${Corpse.Items} & !${corpselock}) /goto :ALlootlag
-   /for i 1 to ${loottotal}
-     /if (!${Corpse.Item[${i}].ID}) /next i
-     /echo ${If[${TimeStampOnEcho},[${Time}] ,]}Item - ${i} - ${Corpse.Item[${i}]}
-     /multiline ; /varset CanLoot FALSE;/varset CurrentItem ${If[${Corpse.Item[${i}].Name.Find[,]},${Corpse.Item[${i}].Name.Arg[1,,]}${Corpse.Item[${i}].Name.Arg[2,,]},${Corpse.Item[${i}].Name}]}
-     /varset CurrIni ${Ini["${LootIni}","${Corpse.Item[${i}].Name.Left[1]}","${CurrentItem}"]}
-     /if (${CurrIni.Equal[Destroy]}) {
-       /if (!${QuestOnly}) /call LootItem ${i} Destroy left
-       /next i
-     }
-     /if (${CurrIni.Left[5].Equal[Keep|]} && ${FindItemCount[${Corpse.Item[${i}]}]}>=${CurrIni.Arg[2,|]}) /multiline ; /varset LootList ${LootList}${Corpse.Item[${i}]},;/next i
-     /if (${Corpse.Item[${i}].ID} && !${Select[${CurrIni},Ignore,Keep,Destroy,Sell,Buy,${Me.Name}]} && !${CurrIni.Find[Quest|]} && !${Select[${CurrIni},${Category}]}) {
-       /if (${Corpse.Item[${i}].NoDrop}) /ini "${LootIni}" "${Corpse.Item[${i}].Name.Left[1]}" "${CurrentItem}" Ignore
-       /if (!${Corpse.Item[${i}].NoDrop}) /ini "${LootIni}" "${Corpse.Item[${i}].Name.Left[1]}" "${CurrentItem}" Keep
-       /varset CurrIni ${Ini["${LootIni}","${Corpse.Item[${i}].Name.Left[1]}","${CurrentItem}"]}
-     }
-     /if ((${Corpse.Item[${i}].Lore} && !${FindItem[${Corpse.Item[${i}]}].ID} && !${FindItemBank[${Corpse.Item[${i}]}].ID} || !${Corpse.Item[${i}].Lore}) && (${Me.FreeInventory} || (${FindItemCount[=${Corpse.Item[${i}].Name}]} && ${Corpse.Item[${i}].Stackable} && ${Corpse.Item[${i}].FreeStack})) && (${CurrIni.Equal[Keep]} || ${CurrIni.Equal[Sell]} || ${CurrIni.Find[${Me.Name}]} || (${Select[${CurrIni},${Category}]} && !${CurrIni.Find[Quest|]}))) {
-       /if (!${QuestOnly} && (${CurrIni.Equal[Sell]} || ${CurrIni.Equal[Keep]} || ${CurrIni.Left[5].Equal[Keep|]} && ${FindItemCount[${Corpse.Item[${i}]}]}<${CurrIni.Arg[2,|]})) /multiline ; /varset CanLoot TRUE;/goto :doLoot
-       /for z 1 to ${Math.Calc[${CurrIni.Count[|]} + 1]}
-	 /if (${CurrIni.Arg[${z},|].Equal[${Me.Name}]} || ${CurrIni.Arg[${z},|].Equal[Keep]}) /multiline ; /varset CanLoot TRUE;/goto :doLoot
-	 /if (${Select[${CurrIni.Arg[${z},|]},${Category}]} && !${CurrIni.Find[Quest|]}) {
-	   /if (!${${CurrIni.Arg[${z},|]}.Find[${Me.Name}]} && !${${CurrIni.Arg[${z},|]}.Find[${Me.Class.ShortName}]} && !${Corpse.Item[${i}].NoDrop}) {
- 	     /for y 1 to ${Math.Calc[${${CurrIni.Arg[${z},|]}.Count[,]}+1]}
-| this loop is just here to loot the item if no-one matching the catagory params in in group.  If toon not here, loot, otherwise check quests.
-| /echo ${If[${TimeStampOnEcho},[${Time}] ,]}LootCheck:  Catagory: ${CurrIni.Arg[${z},|]}  Spawncheck for: ${${CurrIni.Arg[${z},|]}.Arg[${y}, ]}
-               /if (${Spawn[pc group ${${CurrIni.Arg[${z},|]}.Arg[${y}, ]}].ID}) /goto :tContinue
-    	     /next y
-    	     /if (!${QuestOnly}) /multiline ; /varset CanLoot TRUE;/goto :doLoot
-    	   } else /if (${${CurrIni.Arg[${z},|]}.Find[${Me.Name}]} || ${${CurrIni.Arg[${z},|]}.Find[${Me.Class.ShortName}]}) {
-    	     /if (!${QuestOnly}) /multiline ; /varset CanLoot TRUE;/goto :doLoot
-    	   } else /if (!${Select[${CurrIni},${Category}]} && !${CurrIni.Find[Quest|]} && !${QuestOnly}) {
-    	     /docommand ${If[${KeepScript.Length} && ${CurrIni.Find[Sell]} || ${CurrIni.Find[Script]},/call MBScript ${KeepScript} ${i},/call LootItem ${i} Keep right]}	
-	   }
-	 }
-       /next z
-     }
-:tContinue
-     /if ((${DoQuest} || ${QuestOnly}) && ${CurrIni.Find[Quest|]} && ${FindItemCount[=${Corpse.Item[${i}].Name}]}<${CurrIni.Arg[2,|]} && (${Me.FreeInventory} || (${FindItemCount[=${Corpse.Item[${i}].Name}]} && ${Corpse.Item[${i}].Stackable} && ${Corpse.Item[${i}].FreeStack}))) {
-       /if (${CurrIni.Arg[3,|].Length}) {
-         /if (!${Window[TaskWnd].Open} && !${Window[TaskWnd].Child[TASK_TaskList].Items}) /nomodkey /keypress alt+q
-         /delay 1s ${Window[TaskWnd].Open}
-         /for x 1 to ${Window[TaskWnd].Child[TASK_TaskList].Items}
-           /if (${Window[TaskWnd].Child[TASK_TaskList].List[${x},2].Equal[${CurrIni.Arg[3,|]}]} ) /multiline ; /varset CanLoot TRUE;/goto :doLoot
-         /next x
-         /if (${Window[TaskWnd].Open}) /nomodkey /keypress alt+q
-       } else {
-    	 /if (!${CurrIni.Arg[3,|].Length}) /echo ${If[${TimeStampOnEcho},[${Time}] ,]}Please specify quest name for ${Corpse.Item[${i}].Name}.  Format for "${LootIni}" is =Quest|<count>|<quest name>|  Looting item.
-    	 /varset CanLoot TRUE
-       }
-     }
-:doLoot
-| /echo ${If[${TimeStampOnEcho},[${Time}] ,]}${CanLoot} : ${Corpse.Item[${i}]}
-     /if (${CanLoot}) /call LootItem ${i} Keep right
-     /if (${Corpse.Item[${i}].ID}) /varset LootList ${LootList}${Corpse.Item[${i}]},
-   /next i
-   /if (${Corpse.Items}) {
-     /if (${ReportLoot} && ${LootList.Length}) /${LootChannel} [+r+]${LootList} left on corpse.[+x+] ID#: ${Target.ID}
-     /if (${Target.ID} && ${Target.Type.Equal[corpse]}) /squelch /alert add 25 id ${Target.ID}
-     /if (!${CorpseRotTimer}) /varset CorpseRotTimer ${CorpseRotTime}
+   /declare x int local
+   /declare CantLootID int outer
+   /declare MasterCorpseList string outer
+   /declare LootList string outer
+   /declare RelootTimer timer outer
+   /declare LootCleanupTimer timer outer 10m
+   /declare ItemForaged bool outer FALSE
+   /declare ForageIni string outer
+  
+   /call LoadINIVar Settings LootIni "Loot.ini" LootIni "${MBCommon}" string
+   /if (!${LootIni.Find[/]} && !${LootIni.Find[\]}) /varset LootIni ${IniLocation}${LootIni}
+   
+|  /call LoadINIVar Settings LootMobs TRUE LootMobs "${LootIni}" bool
+   /call LoadINIVar Settings CorpseRadius 100 CorpseRadius "${LootIni}" int
+   /call LoadINIVar Settings MobsTooClose 50 MobsTooClose "${LootIni}" int
+   /call LoadINIVar Settings CorpseRotTime 440s CorpseRotTime "${LootIni}" string
+|  /call LoadINIVar Settings ReportLoot FALSE ReportLoot "${LootIni}" bool
+|  /call LoadINIVar Settings LootChannel bc LootChannel "${LootIni}" string
+   /call LoadINIVar Settings QuestOnly "FALSE" QuestOnly "${LootIni}" bool
+   /call LoadINIVar Settings KeepScript " " KeepScript "${LootIni}" string
+| Convert old ReportLoot+LootChannel to LootAnnounce
+   /if (!${Ini.File[${LootIni}].Section[Settings].Key[LootAnnounce].Exists} && ${Ini.File[${LootIni}].Section[Settings].Key[LootChannel].Exists} && ${Ini.File[${LootIni}].Section[Settings].Key[ReportLoot].Value.Equal[TRUE]}) {
+      /call LoadINIVar Settings LootAnnounce "${If[${Ini.File[${LootIni}].Section[Settings].Key[LootChannel].Value.Length},/${Ini.File[${LootIni}].Section[Settings].Key[LootChannel].Value}, ]}" LootAnnounce "${LootIni}" string
+   } else {
+      /call LoadINIVar Settings LootAnnounce " " LootAnnounce "${LootIni}" string 
    }
- }
- /call CloseCorpse
-| 	/echo ${If[${TimeStampOnEcho},[${Time}] ,]}142	
-/return
+   /call LoadINIVar Settings ForageAnnounce " " ForageAnnounce "${LootIni}" string
+   /call LoadINIVar Settings Category "Tradeskill,Spellscroll" Category "${LootIni}" string
+   /for x 1 to ${Math.Calc[${Category.Count[,]}+1]}
+      /call LoadINIVar Settings ${Category.Arg[${x},,]} "Toon1Name,Toon2Name" ${Category.Arg[${x},,]} "${LootIni}" string
+|/echo ${If[${TimeStampOnEcho},[${Time}] ,]}Category arg ${x} : ${Category.Arg[${x},,]}
+   /next x
 
-
-Sub LootItem(int i,DoWhat,WhichButton)
-| /echo ${If[${TimeStampOnEcho},[${Time}] ,]}LootItem(int i,DoWhat,WhichButton) - ${i}, ${DoWhat} ${WhichButton}
- /declare CorpseItemID int local ${Corpse.Item[${i}].ID}
-| /nomodkey /shift /itemnotify Loot${i} ${WhichButton}mouseup
- /nomodkey /itemnotify Loot${i} ${WhichButton}mouseup
- /delay 2
- /delay 5s ${Window[ConfirmationDialogBox].Open} || !${Corpse.Item[${i}].NoDrop}
- /if (${Window[ConfirmationDialogBox].Open}) /nomodkey /notify ConfirmationDialogBox Yes_Button leftmouseup
- /delay 5s ${Cursor.ID} || ${WhichButton.NotEqual[left]}
- /if (${DoWhat.Equal[Destroy]} && ${Cursor.ID}==${CorpseItemID}) /destroy
- /delay 3s !${Corpse.Item[${i}].ID}
-:ALauto_inv
- /if (${Cursor.ID}) {
-   /if (${Cursor.NoDrop} && !${Me.FreeInventory}) /return
-   /timed 5 /autoinventory
-   /delay 2
-   /delay 3s !${Cursor.ID}
-   /if (!${Cursor.ID}) /goto :CursDone
-   /delay 2
-   /goto :ALauto_inv
- }
-:CursDone
+| Look for old ForageIni key. If key and file exist, convert the file and mark it converted.
+   /if (${Ini.File[${IniFile}].Section[Settings].Key[ForageIni].Exists}) {
+      /if (${Ini.File[${IniFile}].Section[Settings].Key[ForageIni].Value.Length}) {
+         /varset ForageIni ${Ini.File[${IniFile}].Section[Settings].Key[ForageIni].Value}
+         /if (!${ForageIni.Find[/]} && !${ForageIni.Find[\]}) /varset ForageIni ${IniLocation}${ForageIni}
+         /if (${Ini.File[${ForageIni}].Section[ForageList].Exists} && !${Ini.File[${ForageIni}].Section[Settings].Key[FileConverted].Value.Equal[TRUE]}) {
+            /call ForageToLoot
+            /ini "${ForageIni}" "Settings" "FileConverted" "TRUE"
+         }
+      }
+   }
 /return
 
 
 Sub LootMobs
-/declare LMFollow bool local FALSE
- /if (!${LootMobs} || ${SpawnCount[npc los radius ${MobsTooClose} zradius ${ZRadius} noalert ${AlertList}]}>${SpawnCount[npc untargetable los radius ${MobsTooClose} zradius ${ZRadius} noalert ${AlertList}]} || !${SpawnCount[corpse radius ${CorpseRadius} zradius ${ZRadius} noalert 25]} || ${Me.Combat} || (${Cursor.NoDrop} && !${Me.FreeInventory}) || ${RelootTimer}) /return
- /if (!${CorpseRotTimer}) /squelch /alert clear 25
- /declare i int local ${Math.Rand[20]}
- /varset RelootTimer ${Math.Calc[20 + ${i}]}s
- /varset CorpseList |
- /if (${Select[${MakeCamp},on]} && ${CampStatus}!=2) /return
- /varset i 1
- /for i 1 to ${SpawnCount[corpse radius ${CorpseRadius} zradius ${ZRadius} noalert 25]}
-   /varset CorpseList ${CorpseList}${NearestSpawn[${i},corpse radius ${CorpseRadius} noalert 25].ID}|
- /next i
- /declare DeadCount int local ${SpawnCount[corpse radius ${CorpseRadius} zradius ${ZRadius} noalert 25]}
- /if (${DeadCount}) {
-   /if (${Me.Sneaking}) /multiline ; /doability sneak;/delay 5
-   /if (${FollowFlag}) {
-     /varset LMFollow TRUE
-     /squelch /stick off
-     /if (${FollowFlag} && !${${FollowPlug}.Paused}) {
-       /varset FollowFlag 3
-       /squelch /docommand /${FollowCommand} pause
-       /echo ${If[${TimeStampOnEcho},[${Time}] ,]}Follow paused.
-     }
-   } else {
-     /declare LMStartX int local ${Me.X}
-     /declare LMStartY int local ${Me.Y}
-     /declare LMStartHeading ${Me.Heading.DegreesCCW}
+   /if (!${DoLoot} || ${Me.Combat} || ${MBPause} || ${RelootTimer}) /return
+|  /varset RelootTimer ${Math.Rand[20,40]}s
+   /varset RelootTimer 10s
+   
+   /declare tSpawnParms string local corpse radius ${CorpseRadius} zradius 50 
+   /declare DeadCount int local ${SpawnCount[${tSpawnParms}]}
+   /if (!${DeadCount}) /return   
+   /if (${SpawnCount[npc los radius ${MobsTooClose} zradius ${ZRadius} noalert ${AlertList}]}) /return
+   
+   /declare i int local
+   /declare CorpseList string local
+   /declare CorpseToLoot int local
+|  /declare tZDist float local ${Math.Distance[${Target.Z}:${Me.Z}]}
+   /declare ClosestCorpse int local
+   /declare CorpseCount int local 0
+   /declare LootMove bool local FALSE
+   /declare LMStartX int local
+   /declare LMStartY int local
+   /declare LMStartHeading
+   
+   /for i 1 to ${DeadCount}
+      /varset ClosestCorpse ${NearestSpawn[${i},${tSpawnParms}].ID}
+      /if (!${ClosestCorpse}) /break
+      /if (!${Spawn[${ClosestCorpse}].Deity.ID}) {
+         /call AddToList "${CorpseList}" "${ClosestCorpse}"
+         /varset CorpseList ${Macro.Return}
+         /if (!${Select[${ClosestCorpse},${MasterCorpseList}]}) {
+            /call AddToList "${MasterCorpseList}" "${ClosestCorpse}"
+            /varset MasterCorpseList ${Macro.Return}
+         }
+      }
+   /next i
+   /if (!${CorpseList.Length}) /return   
+   /for i 1 to ${Math.Calc[${CorpseList.Count[,]}+1]}
+      /varset CorpseToLoot ${CorpseList.Arg[${i},,]}
+      /if (!${Defined[CorpseLocked${CorpseToLoot}]}) {
+         /declare CorpseLocked${CorpseToLoot} timer outer 0
+      }
+      /if (${Spawn[${CorpseToLoot}].Deity.ID} || !${Spawn[${CorpseToLoot}].ID} || !${Spawn[${CorpseToLoot}].LineOfSight} || ${CorpseLocked${CorpseToLoot}}) /continue
+      /if (${Target.ID}!=${CorpseToLoot}) {
+         /squelch /target id ${CorpseToLoot}
+      }
+      /if (!${Me.Standing}) /stand
+      /if (${Me.Sneaking}) {
+         /doability sneak
+         /delay 5
+      }
+      /delay 3s ${Target.ID}==${CorpseToLoot} && ${Me.Standing}
+      /if (${Target.Z}<${Me.Z}) /look -10
+      /if (${Target.Distance}>12) {
+         /if (${MakeCamp.Status.Equal[on]}) /squelch /makecamp pause   
+         /if (${AdvPath.Following} && !${AdvPath.Paused}) {
+            /varset FollowState 2
+            /squelch /afollow pause
+            /echo ${If[${TimeStampOnEcho},[${Time}] ,]}Msg: Looting. Follow paused.
+         } else /if (!${LootMove}) {
+            /varset LMStartX ${Me.X}
+            /varset LMStartY ${Me.Y}
+            /varset LMStartHeading ${Me.Heading.DegreesCCW}
+         }
+         /if (${Me.Mount.ID}) /dismount
+         /call MBMoveTo ${Target.Y} ${Target.X}
+         /varset LootMove TRUE
+      }
+      /delay 10s ${Target.Distance}<=12
+      /if (${Target.Distance}<15) { 
+          /call LootCorpse ${Target.ID}
+          /call RemoveCorpseID ${CorpseToLoot}
+      }
+      /call ADSpawnCheck Find
+      /if (${ADMobFound}) /break
+   /next i
+   /if (${Corpse.Open}) /call CloseCorpse
+   /if (${FollowState}==2) {
+      /varset FollowState 1
+      /squelch /afollow unpause
+   } else /if (${LootMove}) {
+      /call MBMoveTo ${LMStartY} ${LMStartX}
+      /delay 10s !${Me.Moving}
+      /if (${UseHeadings}) {
+         /squelch /face nolook ${If[${MacroQuest.BuildName.Equal[emu]},fast ,]}heading ${LMStartHeading}
+      }
    }
- }
- /if (${Me.Mount.ID}) /dismount
- /for i 1 to ${DeadCount}
-   /if (${Spawn[${CorpseList.Arg[${i},|]}].Deity.ID} && ${Spawn[${CorpseList.Arg[${i},|]}].ID}) /squelch /alert add 25 id ${Spawn[${CorpseList.Arg[${i},|]}].ID}
-   /if (${Spawn[${CorpseList.Arg[${i},|]}].ID} && ${Spawn[${CorpseList.Arg[${i},|]}].LineOfSight} && !${Spawn[${CorpseList.Arg[${i},|]}].Deity.ID}) {
-     /if (${Target.ID}!=${Spawn[${CorpseList.Arg[${i},|]}].ID}) /target id ${Spawn[${CorpseList.Arg[${i},|]}].ID}
-     /if (!${Me.Standing}) /stand
-     /delay 2s ${Target.ID}==${Spawn[${CorpseList.Arg[${i},|]}].ID} && ${Me.Standing}
-     /if (${Target.Z}<${Me.Z}) /look -10
-     /if (${Spawn[${CorpseList.Arg[${i},|]}].Distance3D}>12) /call MBMoveTo ${Spawn[${CorpseList.Arg[${i},|]}].Y} ${Spawn[${CorpseList.Arg[${i},|]}].X}
-     /delay 10s ${Spawn[${CorpseList.Arg[${i},|]}].Distance3D}<12
-     /if (${Spawn[${CorpseList.Arg[${i},|]}].Distance3D}<15) /call LootCorpse
-     /delay 1
-     /if (${Spawn[${CorpseList.Arg[${i},|]}].Distance3D}>15 && ${Target.ID} && ${Target.Type.Equal[corpse]}) /squelch /alert add 25 id ${Target.ID}
-     /squelch /stick off
-   }
-   /call ADSpawnCheck Find
-   /if (${ADMobFound}) /goto :tMobsAround
- /next i
-:tMobsAround
- /if (${LMFollow}) {
-   /varset FollowFlag 1
-   /call AdvPathCall
-   /varset FollowFlag 1
-   /squelch /${FollowCommand} unpause
- } else {
-   /call MBMoveTo ${LMStartY} ${LMStartX}
-   /delay 15s !${Me.Moving}
-   /squelch /face heading ${LMStartHeading}
- }
- /if (${Select[${MakeCamp},on]}) /squelch /makecamp mpause
- /if (${Corpse.Open}) /call CloseCorpse
- /doevents
+   /if (${MakeCamp.Status.Equal[paused]}) /squelch /makecamp unpause
+   /doevents
 /return
 
-Sub Event_ALCantLoot
- /if (${Target.ID} && ${Target.Type.Equal[corpse]}) /varset ALDontLoot ${Target.ID}
- /varset ALDontLootTimer 2m
+
+Sub LootCorpse(CorpseID)
+   /declare i int local
+   /declare y int local
+   /declare CurrentItem string local
+   /declare LootIniEntry string local
+   /declare LootIniAction string local
+   /declare LootIniCount int local
+   /declare x int local 0
+   /declare z int local 0
+   /declare corpselock timer local 5s
+   /declare CanLoot bool local FALSE
+   /declare loottotal int local   
+   /declare FirstLetter string local
+   /declare tNeeded int local
+   
+   /call ClearCursor force
+   /varset CantLootID 0
+   /varset LootList
+| Open Loot window
+   /loot
+   /delay 3s ${Window[LootWnd]}
+   /delay 1s
+   /doevents CantLoot
+   /delay 3s ${CantLootID} || ${Window[LootWnd]}
+   /if (${Target.ID}==${CantLootID} && !${Window[LootWnd]}) {
+      /if (${Defined[CorpseLocked${CorpseID}]}) {
+         /varset CorpseLocked${CorpseID} 150s
+      }
+      /return
+   }
+   /delay 2
+   /if (${Window[LootWnd].Open} && ${Corpse.Items}) {
+| Give time for Loot Lag      
+      /while (1) {
+         /varset loottotal ${Corpse.Items}
+         /delay 1s ${loottotal}!=${Corpse.Items}
+         /if (${loottotal}==${Corpse.Items} || !${corpselock}) /break
+         /echo ${If[${TimeStampOnEcho},[${Time}] ,]}Loot lag...
+      }            
+      /for i 1 to ${loottotal}
+         /if (!${Corpse.Item[${i}].ID}) /continue
+         /if (${Corpse.Item[${i}].Lore} && ${FindItemCount[${Corpse.Item[${i}]}]} ) /continue
+         /if (${Corpse.Item[${i}].Lore} && ${FindItemBankCount[${Corpse.Item[${i}]}]} ) /continue
+|/echo ${If[${TimeStampOnEcho},[${Time}] ,]}Item - ${i} - ${Corpse.Item[${i}].Name}
+         /call DoLootAction Corpse ${i}
+         /if (${Macro.Return.Equal[Ignore]}) {
+            /call LootItem ${i} Ignore
+         } else /if (${Macro.Return.Equal[Destroy]}) {
+            /call LootItem ${i} Destroy left ${Corpse.Item[${i}].Stack}
+         } else /if (${Macro.Return.Equal[NoRoom]}) {
+            /echo ${If[${TimeStampOnEcho},[${Time}] ,]}No room for loot item: "${CurrentItem}" (left on corpse).
+            /call LootItem ${i} Ignore
+         } else /if (${Macro.Return.Find[Keep]}) {
+            /varset tNeeded ${Macro.Return.Arg[2,${PipeChar}]}
+            /call LootItem ${i} Keep right ${tNeeded}
+         } else {
+            /echo ${If[${TimeStampOnEcho},[${Time}] ,]}Invalid action for loot item: "${CurrentItem}" (left on corpse).
+            /call LootItem ${i} Ignore
+         }
+      /next i
+      /if (${Corpse.Items}) {
+         /if (${LootAnnounce.Length} && ${LootList.Length}) {
+            /docommand ${LootAnnounce} Left on corpse(#${Target.ID}): [+r+]${LootList}[+x+]
+         }
+         /if (${Defined[CorpseLocked${CorpseID}]}) {
+            /varset CorpseLocked${CorpseID} ${CorpseRotTime}s
+         }
+      }
+   }
+   /call CloseCorpse        
+   /call RemoveCorpseID ${CorpseID}
+/return
+
+
+Sub LootItem(int i,string DoWhat,string WhichButton,int HowMany)
+| /echo ${If[${TimeStampOnEcho},[${Time}] ,]}LootItem(int i,DoWhat,WhichButton) - ${i}, ${DoWhat} ${WhichButton}
+   /if (${DoWhat.Equal[Ignore]} || ${HowMany}<1) /goto :noLoot
+| You can't split stacks of no-drop items if you have confirmations on.
+| The confirmation dialogue will pop up first. When you click OK, it will loot the whole stack.
+   /if (${Corpse.Item[${i}].NoDrop} && ${HowMany}<${Corpse.Item[${i}].Stack} && ${Window[OptionsWindow].Child[OGP_NoDropItemCombobox].GetCurSel}<3) /goto :noLoot
+   /declare CorpseItemID int local ${Corpse.Item[${i}].ID}
+   /declare CorpseStack int local ${Corpse.Item[${i}].Stack}
+   /if (${HowMany}>=${Corpse.Item[${i}].Stack}) {
+      /nomodkey /shift /itemnotify Loot${i} ${WhichButton}mouseup
+   } else {
+      /nomodkey /itemnotify Loot${i} ${WhichButton}mouseup
+      /delay 2s ${Window[QuantityWnd].Open}
+      /if (!${Window[QuantityWnd].Open}) {
+         /echo ${If[${TimeStampOnEcho},[${Time}] ,]}Problem with Loot Quantity selection - ${Corpse.Item[${i}].Name}
+         /goto :noLoot
+      }
+      /nomodkey /notify QuantityWnd QTYW_Slider newvalue ${HowMany}
+      /delay 5
+      /nomodkey /notify QuantityWnd QTYW_Accept_button leftmouseup         
+   }
+   /delay 2
+   /if (${Corpse.Item[${i}].NoDrop}) {
+      /delay 5s ${Window[ConfirmationDialogBox].Open} || ${Window[OptionsWindow].Child[OGP_NoDropItemCombobox].GetCurSel}>2
+      /if (${Window[ConfirmationDialogBox].Open}) /nomodkey /notify ConfirmationDialogBox Yes_Button leftmouseup
+      /delay 2
+   }
+   /delay 3s !${Corpse.Item[${i}].ID} || ${Corpse.Item[${i}].Stack}!=${CorpseStack}
+   /if (${WhichButton.Equal[left]}) {
+      /delay 5s ${Cursor.ID}
+      /if (${DoWhat.Equal[Destroy]} && ${Cursor.ID}==${CorpseItemID}) {
+         /destroy
+         /delay 2
+      }
+   }      
+   /if (${Cursor.ID}) /call ClearCursor force
+   /delay 2
+:noLoot
+   /if (${Corpse.Item[${i}].ID}) {
+      /varset LootList ${LootList}${If[!${LootList.Length},,,]}${Corpse.Item[${i}].Name}${If[${Corpse.Item[${i}].Stack}>1,x${Corpse.Item[${i}].Stack},]}
+   }
+/return
+
+
+Sub Event_CantLoot
+   /varset CantLootID ${Target.ID}
+/return
+
+
+Sub RemoveCorpseID(CListID)
+   /if (${Defined[CorpseLocked${CListID}]}) {
+      /if (!${CorpseLocked${CListID}} && ${Select[${CListID},${MasterCorpseList}]}) {
+         /deletevar CorpseLocked${CListID}
+         /call RemoveFromList "${MasterCorpseList}" "${CListID}"
+         /varset MasterCorpseList ${Macro.Return}         
+      }
+   }
+/return
+
+
+Sub CloseCorpse
+   /declare corpselock timer local 10s
+   /while (${Corpse.Open} && ${corpselock}) {
+      /nomodkey /notify LootWnd LW_DoneButton leftmouseup
+      /delay 5 !${Corpse.Open}
+   }
+   /if (${Corpse.Open}) /nomodkey /keypress esc
+/return
+
+
+Sub CheckFreeInventory(string TLO)
+   /if (${Me.FreeInventory}) /return TRUE
+   /if (!${${TLO}.Stackable}) /return FALSE
+   /if (!${FindItemCount[=${${TLO}.Name}]}) /return FALSE
+   /if (${${TLO}.FreeStack}>=${${TLO}.Stack}) /return TRUE
+/return FALSE
+
+
+Sub DoLootAction(string Source,int CorpseSlot)
+   /declare x int local
+   /declare y int local
+   /declare z int local
+   /declare CurrentItem string local
+   /declare LootIniEntry string local
+   /declare LootIniAction string local
+   /declare LootIniCount int local
+   /declare CanLoot bool local FALSE
+   /declare FirstLetter string local
+   /declare tNeeded int local
+   /declare TLO string local
+   
+   /if (${Source.Equal[Corpse]}) {
+      /if (!${CorpseSlot}) /return Invalid
+      /varset TLO Corpse.Item[${CorpseSlot}]
+   } else /if (${Source.Equal[Cursor]}) {
+      /varset TLO Cursor
+   } else {
+      /return Invalid
+   }
+   /if (!${${TLO}.ID}) /return Invalid
+|/echo ${If[${TimeStampOnEcho},[${Time}] ,]}Item - ${TLO} - ${${TLO}.Name}
+   /varset CurrentItem ${If[${${TLO}.Name.Find[,]},${${TLO}.Name.Arg[1,,]}${${TLO}.Name.Arg[2,,]},${${TLO}.Name}]}
+   /varset FirstLetter ${${TLO}.Name.Left[1]}
+   /varset LootIniEntry ${Ini["${LootIni}","${FirstLetter}","${CurrentItem}"]}
+   /if (!${LootIniEntry.Length} || ${LootIniEntry.Equal[NULL]}) {
+      /ini "${LootIni}" "${FirstLetter}" "${CurrentItem}" ${If[${${TLO}.NoDrop},Ignore,Keep]}
+      /varset LootIniEntry ${Ini["${LootIni}","${FirstLetter}","${CurrentItem}"]}
+      /if (${Source.Equal[Corpse]}) {
+         /if (${LootAnnounce.Length}) {
+            /docommand ${LootAnnounce} [+y+]New loot item[+x+] added: "${CurrentItem}" (${LootIniEntry}).
+         }
+      } else {
+         /if (${ForageAnnounce.Length}) {
+            /docommand ${ForageAnnounce} [+y+]New forage item[+x+] added: "${CurrentItem}" (${LootIniEntry}).
+         }
+      }
+   }
+   /varset LootIniAction ${LootIniEntry.Arg[1,${PipeChar}]}
+   /varset LootIniCount ${LootIniEntry.Arg[2,${PipeChar}]}
+   /if (${LootIniAction.Equal[Ignore]}) {
+      /return Ignore
+   }
+   /if (${LootIniAction.Equal[Destroy]}) {
+      /if (!${QuestOnly}) {
+         /return Destroy
+      }
+      /return Ignore
+   }
+   /if (${LootIniAction.Equal[Keep]} && ${LootIniCount}) {
+      /if (${TLO.Equal[Cursor]}) {
+         /if (${FindItemCount[=${${TLO}.Name}]}>${LootIniCount}) {
+            /return Ignore
+         }
+      } else /if (${FindItemCount[=${${TLO}.Name}]}>=${LootIniCount}) {
+         /return Ignore
+      }
+   }
+   /if (${TLO.NotEqual[Cursor]} && ${${TLO}.Lore}) {
+      /if (${FindItem[=${${TLO}.Name}].ID} || ${FindItemBank[=${${TLO}.Name}].ID}) {
+         /return Ignore
+      }
+   }
+   /call CheckFreeInventory ${TLO}
+   /if (${Macro.Return.Equal[FALSE]}) {
+      /return NoRoom
+   }
+   /if (${Select[${LootIniAction},Keep,Sell,Buy,${Me.Name}]} || (${Select[${LootIniEntry},${Category}]} && !${LootIniEntry.Find[Quest${PipeChar}]})) {
+      /if (!${QuestOnly} && ${Select[${LootIniAction},Keep,Sell]}) {
+         /varset CanLoot TRUE
+      } else {
+         /for z 1 to ${Math.Calc[${LootIniEntry.Count[${PipeChar}]} + 1]}
+            /if (${LootIniEntry.Arg[${z},${PipeChar}].Equal[${Me.Name}]} || ${LootIniEntry.Arg[${z},${PipeChar}].Equal[Keep]}) {
+               /varset CanLoot TRUE
+               /break
+            }
+            /if (${Select[${LootIniEntry.Arg[${z},${PipeChar}]},${Category}]} && !${LootIniEntry.Find[Quest${PipeChar}]}) {
+               /if (!${${LootIniEntry.Arg[${z},${PipeChar}]}.Find[${Me.Name}]} && !${${LootIniEntry.Arg[${z},${PipeChar}]}.Find[${Me.Class.ShortName}]} && !${${TLO}.NoDrop}) {
+                  /for y 1 to ${Math.Calc[${${LootIniEntry.Arg[${z},${PipeChar}]}.Count[,]}+1]}
+| this loop is just here to loot the item if no-one matching the category params in in group.  If toon not here, loot, otherwise check quests.
+| /echo ${If[${TimeStampOnEcho},[${Time}] ,]}LootCheck:  Category: ${LootIniEntry.Arg[${z},|]}  Spawncheck for: ${${LootIniEntry.Arg[${z},|]}.Arg[${y}, ]}
+                     /if (${Spawn[pc group ${${LootIniEntry.Arg[${z},${PipeChar}]}.Arg[${y}, ]}].ID}) {
+                        /break
+                     }
+                  /next y
+                  /if (${y}>${Math.Calc[${${LootIniEntry.Arg[${z},${PipeChar}]}.Count[,]}+1]}) /break
+                  /if (!${QuestOnly}) {
+                     /varset CanLoot TRUE
+                     /break
+                  }
+               } else /if (${${LootIniEntry.Arg[${z},${PipeChar}]}.Find[${Me.Name}]} || ${${LootIniEntry.Arg[${z},${PipeChar}]}.Find[${Me.Class.ShortName}]}) {
+                  /if (!${QuestOnly}) {
+                     /varset CanLoot TRUE
+                     /break
+                  }
+               } else /if (!${Select[${LootIniEntry},${Category}]} && !${LootIniEntry.Find[Quest${PipeChar}]} && !${QuestOnly}) {
+                  /if (${KeepScript.Length} && ${LootIniEntry.Find[Sell]} || ${LootIniEntry.Find[Script]}) {
+                     /call MBScript ${KeepScript} ${TLO}
+                  } else {
+                     /varset CanLoot TRUE
+                     /break
+                  }
+               }               
+            }
+         /next z
+      }
+   }
+   /if (!${CanLoot} && (${DoQuest} || ${QuestOnly}) && ${LootIniAction.Equal[Quest${PipeChar}]}) {
+      /if (${FindItemCount[=${${TLO}.Name}]}<${LootIniCount} || (${TLO.Equal[Cursor]} && ${FindItemCount[=${${TLO}.Name}]}==${LootIniCount})) {
+         /if (${LootIniEntry.Arg[3,${PipeChar}].Length}) {
+            /if (${Window[TaskWnd].Child[TASK_TaskList].Items}) {
+               /for x 1 to ${Window[TaskWnd].Child[TASK_TaskList].Items}
+                  /if (${Window[TaskWnd].Child[TASK_TaskList].List[${x},2].Equal[${LootIniEntry.Arg[3,${PipeChar}]}]}) {
+                     /varset CanLoot TRUE
+                     /break
+                  }
+               /next x
+            }
+         } else {
+            /echo ${If[${TimeStampOnEcho},[${Time}] ,]}Please specify quest name for ${${TLO}.Name}. Format for "${LootIni}" is =Quest${PipeChar}<count>${PipeChar}<quest name>${PipeChar}  Looting item.
+            /varset CanLoot TRUE
+         }
+      }
+   }
+   /if (${CanLoot}) {
+      /if ((${LootIniEntry.Find[Keep${PipeChar}]} || ${LootIniEntry.Find[Quest${PipeChar}]}) && ${${TLO}.Stack}>1) {
+         /varcalc tNeeded ${LootIniCount}-${FindItemCount[=${${TLO}.Name}]}${If[${TLO.Equal[Cursor]},+1,]}
+         /if (${${TLO}.Stack}<${tNeeded}) {
+            /varset tNeeded ${${TLO}.Stack}
+         }
+      } else {
+         /varset tNeeded ${${TLO}.Stack}
+      }
+      /return Keep${PipeChar}${tNeeded}
+   }
+| Guess we don't want it
+/return Ignore
+
+
+Sub LootCleanup(string Options)
+   /varset LootCleanupTimer 10m
+   /if (!${MasterCorpseList.Length}) /return
+   /declare i int local
+   /for i 1 to ${Math.Calc[${MasterCorpseList.Count[,]}+1]}
+      /if (${Defined[CorpseLocked${MasterCorpseList.Arg[${i},,]}]}) {
+         /if (!${CorpseLocked${MasterCorpseList.Arg[${i},,]}} || ${Options.Find[zone]}) {
+            /deletevar CorpseLocked${MasterCorpseList.Arg[${i},,]}
+            /call RemoveFromList "${MasterCorpseList}" "${MasterCorpseList.Arg[${i},,]}"
+            /varset MasterCorpseList ${Macro.Return}
+         }
+      }
+   /next i
+/return
+
+
+Sub Event_Forage(string eLine)
+   /varset ItemForaged TRUE
+/return
+
+
+Sub ForageStuff
+   /if (${Window[InventoryWindow].Open} || ${Window[BigBankWnd].Open}) /return
+   /if (!${Me.AbilityReady[forage]}) /return
+   /if (${Cursor.ID}) {
+      /call ClearCursor
+      /if (${Cursor.ID}) /return
+   }
+   /declare CursorItemID local int
+   /if (!${Me.Mount.ID} && !${Me.Standing}) {
+      /stand
+      /delay 5
+   }
+   /doevents flush forage
+   /doability forage
+   /delay 1s || ${Cursor.ID}
+   /delay 2
+   /varset ItemForaged FALSE
+   /doevents Forage
+   /while (${ItemForaged}) {
+      /delay 5 ${Cursor.ID}
+      /if (!${Cursor.ID}) /break
+      /varset CursorItemID ${Cursor.ID}
+      /call DoLootAction Cursor
+      /echo ${If[${TimeStampOnEcho},[${Time}] ,]}You have foraged: "${Cursor.Name}" (${Macro.Return.Arg[1,${PipeChar}]})
+      /if (${Macro.Return.Equal[Destroy]}) {
+         /if (${Cursor.ID}==${CursorItemID}) {
+            /destroy
+         } else {
+            /echo ${If[${TimeStampOnEcho},[${Time}] ,]}Destroy Foraged item mis-match: "${Cursor.Name}" (dropped).
+            /drop
+         }
+      } else /if (${Macro.Return.Equal[Ignore]}) {
+         /if (${Cursor.NoDrop}) {
+            /echo ${If[${TimeStampOnEcho},[${Time}] ,]}Cannot drop No-Drop foraged item: "${Cursor.Name}" (destroying).
+            /destroy
+         } else {
+            /drop
+         }
+      } else /if (${Macro.Return.Find[Keep]}) {
+         /timed 5 /autoinventory
+         /delay 2s !${Cursor.ID}
+      } else /if (${Macro.Return.Equal[NoRoom]}) {
+         /echo ${If[${TimeStampOnEcho},[${Time}] ,]}No room for foraged item: "${Cursor.Name}" (dropped).
+         /drop
+      } else {
+         /echo ${If[${TimeStampOnEcho},[${Time}] ,]}Invalid action for foraged item: "${Cursor.Name}" (dropped).
+         /drop
+      }
+      /delay 5
+      /varset ItemForaged FALSE
+      /doevents Forage
+   }
+   /delay 2s !${Cursor.ID}
+   /doevents flush forage
+/return
+
+
+| One-Time Migrate forage.ini to loot.ini
+Sub ForageToLoot
+   /declare i int local
+   /declare ForageIniEntry string local
+   /declare ForageKey string local
+   /declare ForageKeyValue string local
+   /declare LootKeyValue string local
+   /declare LootIniEntry string local
+   /declare FirstLetter string local
+   /declare ForageIniCount int local
+   /declare ForageIniConverted int local
+   /declare ForageIniExisted int local
+   /declare ForageIniIgnored int local
+
+   /varset ForageIniCount ${Ini.File[${ForageIni}].Section[ForageList].Key.Count}
+   /if (!${ForageIniCount}) /return
+
+   /echo One-Time Converting ForageINI data to LootINI...Starting
+   
+| We're going to Skip the entries with -1. This was the default, which also forces a Keep. However, this happened any time
+| something was on the cursor, not just from foraging. So, the file is full of -1 values unrelated to foraging.
+| If they are foraged in the future, they will get added back as Keep (the default).   
+   /for i 1 to ${ForageIniCount}
+      /varset ForageKey ${Ini.File[${ForageIni}].Section[ForageList].Key.KeyAtIndex[${i}]}
+      /varset ForageKeyValue ${Ini.File[${ForageIni}].Section[ForageList].Key.ValueAtIndex[${i}]}
+      /if (${ForageKey.Length} && ${ForageKey.NotEqual[NULL]} && ${ForageKeyValue.Length} && ${ForageKeyValue.NotEqual[-1]}) {
+         /varset LootKeyValue ${ForageKeyValue}
+         /if (${LootKeyValue.Equal[0]}) {
+            /varset LootKeyValue Ignore
+         } else {
+            /call IsNumber ${LootKeyValue}
+            /if (${Macro.Return.Equal[TRUE]}) {
+               /varset LootKeyValue Keep${PipeChar}${LootKeyValue}
+            }
+         }
+         /varset FirstLetter ${ForageKey.Left[1]}
+         /varset LootIniEntry ${Ini["${LootIni}","${FirstLetter}","${ForageKey}"]}
+         /if (!${LootIniEntry.Length} || ${LootIniEntry.Equal[NULL]}) {
+            /echo ForageINI: ${ForageKey}=${ForageKeyValue} --> LootINI: ${ForageKey}=${LootKeyValue}
+            /ini "${LootIni}" "${FirstLetter}" "${ForageKey}" "${LootKeyValue}"
+            /varcalc ForageIniConverted ${ForageIniConverted}+1
+         } else {
+            /if (${LootKeyValue.NotEqual[${LootIniEntry}]}) {
+               /echo ForageINI: ${ForageKey}=${ForageKeyValue} - Already exists in LootINI as: ${LootIniEntry}
+            }
+            /varcalc ForageIniExisted ${ForageIniExisted}+1
+         }   
+      } else {
+         /varcalc ForageIniIgnored ${ForageIniIgnored}+1
+      }
+   /next i
+
+   /echo Forage keys found: ${ForageIniCount}
+   /echo Forage keys with value Null/-1 (Ignored): ${ForageIniIgnored}
+   /echo Forage keys already in LootINI (Ignored): ${ForageIniExisted}
+   /echo Forage keys converted to LootINI: ${ForageIniConverted}
+   /echo One-Time Converting ForageINI data to LootINI...Completed  
 /return
